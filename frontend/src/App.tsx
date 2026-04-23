@@ -1,4 +1,8 @@
+
 import { useEffect, useState } from "react";
+import Categories from "./Categories";
+import CreateCategory from "./CreateCategory";
+
 
 type User = {
   id: number;
@@ -30,6 +34,7 @@ export default function App() {
   }, []);
 
   return (
+    <>
     <div style={{ padding: 20 }}>
       <h1>Users</h1>
 
@@ -43,5 +48,9 @@ export default function App() {
         ))}
       </ul>
     </div>
+    <Categories></Categories>
+    <CreateCategory></CreateCategory>
+    </>
+    
   );
 }
