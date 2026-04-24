@@ -1,8 +1,6 @@
-
 import { useEffect, useState } from "react";
 import Categories from "./Categories";
 import CreateCategory from "./CreateCategory";
-
 
 type User = {
   id: number;
@@ -22,10 +20,9 @@ export default function App() {
   };
 
   const addUser = async () => {
-    await fetch(
-      `${API_URL}/users?name=Demir2&email=demir2@test.com`,
-      { method: "POST" }
-    );
+    await fetch(`${API_URL}/users?name=Demir32&email=demir2@test.com`, {
+      method: "POST",
+    });
     loadUsers();
   };
 
@@ -35,22 +32,21 @@ export default function App() {
 
   return (
     <>
-    <div style={{ padding: 20 }}>
-      <h1>Users</h1>
+      <div style={{ padding: 20 }}>
+        <h1>Users</h1>
 
-      <button onClick={addUser}>Add User</button>
+        <button onClick={addUser}>Add User</button>
 
-      <ul>
-        {users.map((u) => (
-          <li key={u.id}>
-            {u.name} - {u.email}
-          </li>
-        ))}
-      </ul>
-    </div>
-    <Categories></Categories>
-    <CreateCategory></CreateCategory>
+        <ul>
+          {users.map((u) => (
+            <li key={u.id}>
+              {u.name} - {u.email}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <Categories></Categories>
+      <CreateCategory></CreateCategory>
     </>
-    
   );
 }

@@ -9,6 +9,7 @@ type Category = {
 function Categories() {
   const API_URL = "http://localhost:8000";
   const [categories, setCategories] = useState<Category[]>([]);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const loadCategories = async () => {
     const res = await fetch(`${API_URL}/categories`);
@@ -20,32 +21,50 @@ function Categories() {
     loadCategories();
   }, []);
 
-  const parentCategories = categories.filter((c) => c.parent_id === null);
+  const toggle = (id: number) => {
+    const newExpanded = new Set(expanded);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpanded(newExpanded);
+  };
 
-  return (
-    <div style={{ padding: 20 }}>
-      <h1>Categories</h1>
+  const renderTree = (parentId: number | null) => {
+    const children = categories.filter((c) => c.parent_id === parentId);
+    if (children.length === 0) return null;
+
+    return (
       <ul>
-        {parentCategories.map((parent) => {
-          const children = categories.filter(
-            (c) => c.parent_id === parent.id
+        {children.map((category) => {
+          const hasChildren = categories.some(
+            (c) => c.parent_id === category.id,
           );
+          const isOpen = expanded.has(category.id);
 
           return (
-            <li key={parent.id} style={{ marginBottom: "12px" }}>
-              <strong>{parent.name}</strong>
+            <li key={category.id}>
+              <span
+                onClick={() => toggle(category.id)}
+                style={{ cursor: hasChildren ? "pointer" : "default" }}
+              >
+                {hasChildren && (isOpen ? "▼ " : "▶ ")}
+                {category.name}
+              </span>
 
-              {children.length > 0 && (
-                <ul style={{ marginTop: "6px" }}>
-                  {children.map((child) => (
-                    <li key={child.id}>{child.name}</li>
-                  ))}
-                </ul>
-              )}
+              {hasChildren && isOpen && renderTree(category.id)}
             </li>
           );
         })}
       </ul>
+    );
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h1>Categories</h1>
+      {renderTree(null)}
     </div>
   );
 }
