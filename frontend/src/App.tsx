@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import Categories from "./Categories";
 import CreateCategory from "./CreateCategory";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import Test from "./Test";
 
 type User = {
   id: number;
@@ -10,7 +12,7 @@ type User = {
 
 const API_URL = "http://localhost:8000";
 
-export default function App() {
+function Users() {
   const [users, setUsers] = useState<User[]>([]);
 
   const loadUsers = async () => {
@@ -31,22 +33,33 @@ export default function App() {
   }, []);
 
   return (
-    <>
-      <div style={{ padding: 20 }}>
-        <h1>Users</h1>
+    <div style={{ padding: 20 }}>
+      <h1>Users</h1>
 
-        <button onClick={addUser}>Add User</button>
+      <button onClick={addUser}>Add User</button>
 
-        <ul>
-          {users.map((u) => (
-            <li key={u.id}>
-              {u.name} - {u.email}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <Categories></Categories>
-      <CreateCategory></CreateCategory>
-    </>
+      <ul>
+        {users.map((u) => (
+          <li key={u.id}>
+            {u.name} - {u.email}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Users />} />
+        <Route path="/create" element={<CreateCategory />}>
+          <Route path="car" element={<Categories />} />
+          <Route path="bike" element={<Test />} />
+        </Route>
+        <Route path="/contact" element={<Test />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
