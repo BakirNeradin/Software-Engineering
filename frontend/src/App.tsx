@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import Categories from "./Categories";
-import CreateCategory from "./CreateCategory";
+import Categories from "./views/Categories";
+import CreateCategory from "./views/CreateCategory";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import Test from "./Test";
+import Test from "./views/Test";
 
 type User = {
   id: number;

@@ -1,5 +1,6 @@
 from http.client import HTTPException
-from typing import Optional
+from typing import List, Optional
+from pydantic import BaseModel
 
 from sqlalchemy import null
 
@@ -83,9 +84,46 @@ def create_attribute(
 
     return attribute
 
-@app.get("/attribute", tags=["Attribute"])
-def get_attributes(db: Session = Depends(get_db)):
-    return db.query(Attribute).all()
+class AttributeClass(BaseModel):
+    name: str
+    category_id: int
+    data_type: DataTypeEnum
+    user_written: bool
+    multiple_choice: bool
+
+@app.post("/attributes", tags=["Attribute"])
+def create_attribute(
+    attributes: List[AttributeClass],
+    db: Session = Depends(get_db)
+):
+    created_attributes = []
+    print(attributes)
+    for att in attributes:
+        attribute = Attribute(
+            name=att.name,
+            category_id=att.category_id,
+            data_type=att.data_type,
+            multiple_choice=att.multiple_choice,
+            user_written=att.user_written
+        )
+        db.add(attribute)
+        created_attributes.append(attribute)
+
+    db.commit()
+
+    for attribute in created_attributes:
+        db.refresh(attribute)
+
+    return created_attributes
+
+
+@app.get("/attributes", tags=["Attribute"])
+def get_attributes(null_attribute: Optional[bool] = False, db: Session = Depends(get_db)):
+    query = db.query(Attribute)
+    if null_attribute:
+        query = query.filter(Attribute.category_id == None)
+         
+    return query.all()
 
 @app.post("/attribute_data", tags=["Attribute data"])
 def create_attribute(
