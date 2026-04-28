@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { faChevronDown, faChevronRight } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type Category = {
   id: number;
@@ -17,9 +19,7 @@ function Categories() {
     setCategories(data);
   };
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
+  
 
   const toggle = (id: number) => {
     const newExpanded = new Set(expanded);
@@ -30,41 +30,48 @@ function Categories() {
     }
     setExpanded(newExpanded);
   };
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
-  const renderTree = (parentId: number | null) => {
+  const renderTree = (parentId: number | null, rank: number) => {
     const children = categories.filter((c) => c.parent_id === parentId);
     if (children.length === 0) return null;
 
     return (
-      <ul>
+      <div className={!parentId ? "grid grid-cols-4 gap-4" : ""}>
         {children.map((category) => {
           const hasChildren = categories.some(
             (c) => c.parent_id === category.id,
           );
-          const isOpen = expanded.has(category.id);
+          const isOpen = (expanded.has(category.id) && rank!==0) || (!expanded.has(category.id) && rank===0);
 
           return (
-            <li key={category.id}>
+            <div className={!category.parent_id? "border border-b-olive-500 rounded-md bg-white" : ""} style={{paddingLeft: rank*10}} key={category.id} >
               <span
+              className="flex flex-row gap-1 items-center"
                 onClick={() => toggle(category.id)}
                 style={{ cursor: hasChildren ? "pointer" : "default" }}
               >
                 {hasChildren && (isOpen ? "▼ " : "▶ ")}
                 {category.name}
+                {hasChildren && (isOpen ? <FontAwesomeIcon icon={faChevronDown}/>: <FontAwesomeIcon icon={faChevronRight}/>)}
+                <div className="p-1">{category.name}</div>
               </span>
 
-              {hasChildren && isOpen && renderTree(category.id)}
-            </li>
+              
+            {hasChildren && isOpen && renderTree(category.id, rank+1)}
+            </div>
           );
         })}
-      </ul>
+      </div>
     );
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Categories</h1>
-      {renderTree(null)}
+    <div className="px-18 bg-gray-100 ">
+      
+      {renderTree(null, 0)}
     </div>
   );
 }

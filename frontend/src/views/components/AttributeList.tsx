@@ -1,20 +1,22 @@
-import type { Attribute } from "../../types";
+import type { Attribute, AttributeData } from "../../types";
 import { AttributeCard } from "./AttributeCard"
 
 type Props = {
   attributes: Attribute[];
+  attributeData: AttributeData[]
+  setAttributeData: React.Dispatch<React.SetStateAction<AttributeData[]>>;
 };
 
 
-export const AttributeList = ({ attributes }: Props) => {
+export const AttributeList = ({ attributes, attributeData, setAttributeData }: Props) => {
   
 
-console.log("nesto", attributes)
+
 
  return (
     <>
-    {attributes.map((attribute) => {
-        return (<AttributeCard attribute={attribute}/>)
+    {attributes.map((attribute, i) => {
+        return (<AttributeCard attribute={attribute} attributeData={attributeData} setAttributeData={setAttributeData} attribute_id={i}/>)
     })}
     </>
   );

@@ -1,9 +1,8 @@
-
 export enum DataTypeEnum {
-    TEXT = 'text',
-    NUMBER = 'number',
-    BOOLEAN = 'boolean',
-    DATE = 'date'
+  TEXT = "text",
+  NUMBER = "number",
+  BOOLEAN = "boolean",
+  DATE = "date",
 }
 
 export type Category = {
@@ -18,4 +17,10 @@ export type Attribute = {
   data_type: DataTypeEnum;
   multiple_choice: boolean;
   user_written: boolean;
+};
+
+export type AttributeData = {
+  id?: number;
+  name: string;
+  attribute_id: number;
 };

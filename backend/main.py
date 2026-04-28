@@ -126,7 +126,7 @@ def get_attributes(null_attribute: Optional[bool] = False, db: Session = Depends
     return query.all()
 
 @app.post("/attribute_data", tags=["Attribute data"])
-def create_attribute(
+def create_attribute_data(
     name: str,
     attribute_id: int,
     
@@ -142,3 +142,36 @@ def create_attribute(
 @app.get("/attribute_data", tags=["Attribute data"])
 def get_attributes(db: Session = Depends(get_db)):
     return db.query(AttributeData).all()
+
+class AttributeDataClass(BaseModel):
+    name: str
+    attribute_id: int
+    
+
+@app.post("/attribute_datas", tags=["Attribute data"])
+def create_attribute_datas(
+    attribute_data: List[AttributeDataClass],
+    db: Session = Depends(get_db)
+    
+):
+    
+
+    created_attribute_data= []
+    print(attribute_data)
+    for att in attribute_data:
+        attribute_data = AttributeData(
+            name=att.name,
+            attribute_id=att.attribute_id,
+            
+        )
+        db.add(attribute_data)
+        created_attribute_data.append(attribute_data)
+
+    db.commit()
+
+    for attribute in created_attribute_data:
+        db.refresh(attribute)
+    
+    
+
+    return created_attribute_data

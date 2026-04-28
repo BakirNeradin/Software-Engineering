@@ -20,8 +20,7 @@ const AttributeForm = ({ attributes, setAttributes }: Props) => {
       user_written: userWritten,
     };
     setAttributes([...attributes, attribute]);
-    console.log(attributes);
-    console.log(attribute);
+    
   };
 
   return (

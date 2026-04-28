@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Attribute, Category } from "../types";
+import type { Attribute, AttributeData, Category } from "../types";
 import AttributeForm from "./components/AttributeForm";
 import { Outlet } from "react-router-dom";
 import { AttributeList } from "./components/AttributeList";
@@ -13,6 +13,8 @@ function CreateCategory() {
   const [loading, setLoading] = useState(true);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [nullAttributes, setNullAttributes] = useState<Attribute[]>([]);
+  const [attributeData, setAttributeData] = useState<AttributeData[]>([]);
+
   const fetchCategories = async () => {
     try {
       const response = await fetch(`${API_URL}/categories`);
@@ -77,6 +79,12 @@ function CreateCategory() {
         ...attribute,
         category_id: createdCategory.id,
       }));
+      let attributeIDs: number[] = []
+      nullAttributes.map((attribute)=> {
+        attribute.id && attributeIDs.push(attribute.id)
+      }
+
+      )
 
       if (attributesWithCategoryId.length > 0) {
         const response2 = await fetch(`${API_URL}/attributes`, {
@@ -91,8 +99,37 @@ function CreateCategory() {
           throw new Error("Failed to add attributes");
         }
 
-        const createdAttributes = await response2.json();
+        const createdAttributes: AttributeData[] = await response2.json();
         console.log("Attributes added:", createdAttributes);
+        createdAttributes.map((attribute) =>{
+          attribute.id && attributeIDs.push(attribute.id)
+        }
+
+        )
+        
+      }
+      
+      const attributeDataWithAttributeID = attributeData.map((attributeData) => ({
+        ...attributeData,
+
+        attribute_id: attributeIDs[attributeData.attribute_id]
+      }));
+      console.log(attributeDataWithAttributeID, "pravi", attributeIDs, attributeData)
+      if (attributeDataWithAttributeID.length > 0) {
+        const response3 = await fetch(`${API_URL}/attribute_datas`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(attributeDataWithAttributeID),
+        });
+
+        if (!response3.ok) {
+          throw new Error("Failed to add attributes");
+        }
+
+        const createdAttributeData = await response3.json();
+        console.log("Attributes added:", createdAttributeData);
       }
       setName("");
       setParentId("");
@@ -148,7 +185,7 @@ function CreateCategory() {
         <button type="submit">Add Category</button>
       </form>
       <AttributeForm attributes={attributes} setAttributes={setAttributes} />
-      <AttributeList attributes={[...nullAttributes, ...attributes]} />
+      <AttributeList attributes={[...nullAttributes, ...attributes]} attributeData={attributeData} setAttributeData={setAttributeData} />
       <Outlet />
     </>
   );
