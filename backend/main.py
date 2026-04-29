@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from constants import DataTypeEnum
 from database import engine, Base, get_db
-from models import Attribute, AttributeData, Category, User
+from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, User
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -175,3 +175,46 @@ def create_attribute_datas(
     
 
     return created_attribute_data
+
+@app.get("/listings", tags=["Listing"])
+def get_listings(db: Session = Depends(get_db)):
+    return db.query(Listing).all()
+
+
+@app.post("/create_listing", tags=["Listing"])
+def create_listing(
+    name: str,
+    category_id: int,
+    user_id: int,
+    description: Optional[str] = None,
+
+    
+    db: Session = Depends(get_db)
+):
+    listing = Listing(name=name, category_id=category_id, user_id=user_id, description=description)
+    db.add(listing)
+    db.commit()
+    db.refresh(listing)
+
+    return listing
+
+
+@app.get("/listings_attribute_data", tags=["Listing"])
+def get_listings_data(db: Session = Depends(get_db)):
+    return db.query(ListingAttributeData).all()
+
+@app.post("/create_listings_data", tags=["Listing"])
+def create_listing(
+    listing_id: int,
+    attribute_id: int,
+    value: str,
+
+    
+    db: Session = Depends(get_db)
+):
+    listing = ListingAttributeData(value=value, listing_id=listing_id, attribute_id=attribute_id)
+    db.add(listing)
+    db.commit()
+    db.refresh(listing)
+
+    return listing

@@ -1,8 +1,8 @@
 import Categories from "./views/Categories";
 import CreateCategory from "./views/CreateCategory";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import Test from "./views/Test";
 import Navbar from "./views/components/Navbar";
+import Listings from "./views/Listings";
 
 
 
@@ -13,12 +13,10 @@ export default function App() {
     <Navbar></Navbar>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Test />} />
+        <Route path="/" element={<Categories />} />
         <Route path="/create" element={<CreateCategory />}></Route>
         <Route path="/categories" element={<Categories />}></Route>
-          
-        
-        <Route path="/contact" element={<Test />} />
+        <Route path="/listings" element={<Listings />}></Route>
       </Routes>
     </BrowserRouter>
      </div>

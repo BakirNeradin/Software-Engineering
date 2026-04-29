@@ -24,16 +24,8 @@ const AttributeForm = ({ attributes, setAttributes }: Props) => {
   };
 
   return (
-    <form
-      onSubmit={addAttribute}
-      style={{
-        border: "1px solid #ccc",
-        padding: "16px",
-        borderRadius: "8px",
-        marginBottom: "20px",
-      }}
-    >
-      <div>
+    <form onSubmit={addAttribute} className="border border-gray-300 p-4 rounded-lg mb-5">
+      <div className="border border-gray-300 p-4 rounded-lg mb-5">
         <label htmlFor="name">Attribute name:</label>
         <input
           id="name"
@@ -44,7 +36,7 @@ const AttributeForm = ({ attributes, setAttributes }: Props) => {
         />
       </div>
 
-      <div>
+      <div className="border border-gray-300 p-4 rounded-lg mb-5">
         <label htmlFor="dataType">Data type:</label>
         <select
           id="dataType"
@@ -59,7 +51,7 @@ const AttributeForm = ({ attributes, setAttributes }: Props) => {
         </select>
       </div>
 
-      <div>
+      <div className="border border-gray-300 p-4 rounded-lg mb-5">
         <label htmlFor="multipleChoice">Multiple choice:</label>
 
         <div>
@@ -86,7 +78,7 @@ const AttributeForm = ({ attributes, setAttributes }: Props) => {
         </div>
       </div>
 
-      <div>
+      <div className="border border-gray-300 p-4 rounded-lg mb-5">
         <label htmlFor="userWritten">User written:</label>
 
         <div>

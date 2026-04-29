@@ -1,5 +1,5 @@
-from sqlalchemy import Boolean, Enum as SQLEnum
-
+from sqlalchemy import Boolean, Date, DateTime, Enum as SQLEnum
+import datetime
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from constants import DataTypeEnum
@@ -43,4 +43,28 @@ class AttributeData(Base):
     name = Column(String)
     attribute_id = Column(Integer, ForeignKey("attributes.id"))
 
-    category = relationship("Attribute", backref="attribute_data")
+    attribute = relationship("Attribute", backref="attribute_data")
+
+class Listing(Base):
+    __tablename__ = "listing"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    category_id = Column(Integer, ForeignKey("categories.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    publishing_date = Column(DateTime, default=datetime.datetime.now)
+    description = Column(String)
+
+    category = relationship("Category", backref="listing")
+    user = relationship("User", backref="listing")
+
+class ListingAttributeData(Base):
+    __tablename__ = "listing_attribute_data"
+
+    id = Column(Integer, primary_key=True, index=True)
+    listing_id = Column(Integer, ForeignKey("listing.id"))
+    attribute_id = Column(Integer, ForeignKey("attributes.id"))
+    value = Column(String, nullable=True)
+
+    listing = relationship("Listing", backref="listing_attribute_data")
+    attributes = relationship("Attribute", backref="listing_attribute_data")

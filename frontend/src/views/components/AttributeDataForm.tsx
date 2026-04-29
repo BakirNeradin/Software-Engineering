@@ -24,13 +24,8 @@ export const AttributeDataForm = ({ attributeData, setAttributeData, attribute_i
   };
 
   return (
-    <form onSubmit={addAttribute} style={{
-    border: "1px solid #af1b1b",
-    padding: "16px",
-    borderRadius: "8px",
-    marginBottom: "20px"
-  }}>
-      <div>
+    <form onSubmit={addAttribute}>
+      <div className="rounded border border-gray-400 px-1 py-2 bg-white">
         <label htmlFor="name">Attribute data name:</label>
         <input
           id="name"
@@ -40,7 +35,7 @@ export const AttributeDataForm = ({ attributeData, setAttributeData, attribute_i
           required
         />
       </div>
-      <button type="submit">Add Attribute data</button>
+      <button type="submit" className="rounded border border-gray-500 px-4 py-2 bg-white hover:bg-gray-200">Add Attribute data</button>
     </form>
   );
 };

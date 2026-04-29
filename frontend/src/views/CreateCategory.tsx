@@ -79,12 +79,10 @@ function CreateCategory() {
         ...attribute,
         category_id: createdCategory.id,
       }));
-      let attributeIDs: number[] = []
-      nullAttributes.map((attribute)=> {
-        attribute.id && attributeIDs.push(attribute.id)
-      }
-
-      )
+      let attributeIDs: number[] = [];
+      nullAttributes.map((attribute) => {
+        attribute.id && attributeIDs.push(attribute.id);
+      });
 
       if (attributesWithCategoryId.length > 0) {
         const response2 = await fetch(`${API_URL}/attributes`, {
@@ -101,20 +99,24 @@ function CreateCategory() {
 
         const createdAttributes: AttributeData[] = await response2.json();
         console.log("Attributes added:", createdAttributes);
-        createdAttributes.map((attribute) =>{
-          attribute.id && attributeIDs.push(attribute.id)
-        }
-
-        )
-        
+        createdAttributes.map((attribute) => {
+          attribute.id && attributeIDs.push(attribute.id);
+        });
       }
-      
-      const attributeDataWithAttributeID = attributeData.map((attributeData) => ({
-        ...attributeData,
 
-        attribute_id: attributeIDs[attributeData.attribute_id]
-      }));
-      console.log(attributeDataWithAttributeID, "pravi", attributeIDs, attributeData)
+      const attributeDataWithAttributeID = attributeData.map(
+        (attributeData) => ({
+          ...attributeData,
+
+          attribute_id: attributeIDs[attributeData.attribute_id],
+        }),
+      );
+      console.log(
+        attributeDataWithAttributeID,
+        "pravi",
+        attributeIDs,
+        attributeData,
+      );
       if (attributeDataWithAttributeID.length > 0) {
         const response3 = await fetch(`${API_URL}/attribute_datas`, {
           method: "POST",
@@ -145,33 +147,35 @@ function CreateCategory() {
 
   return (
     <>
-      <form
-        onSubmit={addCategory}
-        style={{
-          border: "1px solid #ccc",
-          padding: "16px",
-          borderRadius: "8px",
-          marginBottom: "20px",
-        }}
-      >
-        <div>
-          <label htmlFor="name">Category name:</label>
+      <head>
+        <title>Create Category</title>
+      </head>
+      <form onSubmit={addCategory} className="px-18">
+        <div className="rounded border border-gray-400 px-3 py-2 bg-white">
+          <label htmlFor="name" className="font-medium pr-2">
+            Category name:
+          </label>
           <input
             id="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            className="border-2"
+            placeholder="Type here"
           />
         </div>
 
-        <div>
-          <label htmlFor="parentId">Parent category:</label>
+        <div className="rounded border border-gray-400 px-3 py-2 bg-white">
+          <label htmlFor="parentId" className="font-medium pr-2">
+            Parent category:
+          </label>
           <select
             id="parentId"
             value={parentId}
             onChange={(e) => setParentId(e.target.value)}
             disabled={loading}
+            className="border-2"
           >
             <option value="">No parent</option>
             {categories.map((category) => (
@@ -182,10 +186,19 @@ function CreateCategory() {
           </select>
         </div>
 
-        <button type="submit">Add Category</button>
+        <button
+          type="submit"
+          className="rounded border border-gray-500 px-4 py-2 bg-white hover:bg-gray-200"
+        >
+          Add Category
+        </button>
       </form>
       <AttributeForm attributes={attributes} setAttributes={setAttributes} />
-      <AttributeList attributes={[...nullAttributes, ...attributes]} attributeData={attributeData} setAttributeData={setAttributeData} />
+      <AttributeList
+        attributes={[...nullAttributes, ...attributes]}
+        attributeData={attributeData}
+        setAttributeData={setAttributeData}
+      />
       <Outlet />
     </>
   );
