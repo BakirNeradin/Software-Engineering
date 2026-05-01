@@ -3,16 +3,31 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from sqlalchemy import null
-
+import cloudinary
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 
 from constants import DataTypeEnum
 from database import engine, Base, get_db
-from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, User
+from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, User
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from dotenv import load_dotenv
+import cloudinary.uploader
+
+import tempfile
+import os
+
+load_dotenv()
+
 app = FastAPI()
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
+)
 
 # create tables
 Base.metadata.create_all(bind=engine)
@@ -218,3 +233,51 @@ def create_listing(
     db.refresh(listing)
 
     return listing
+
+@app.get("/listing_images", tags=["Listing"])
+def get_listing_images(db: Session = Depends(get_db)):
+    return db.query(ListingImages).all()
+
+@app.post("/create_listing_images", tags=["Listing"])
+def create_image_listing(
+    listing_id: int,
+    image_url: str,
+
+    
+    db: Session = Depends(get_db)
+):
+    listing = ListingImages(image_url=image_url, listing_id=listing_id)
+    db.add(listing)
+    db.commit()
+    db.refresh(listing)
+
+    return listing
+
+@app.post("/upload", tags=["Upload image"])
+async def upload_image(image: UploadFile = File(...)):
+    print(image)
+    temp_path = None
+    try:
+        if not image.content_type or not image.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="File must be an image")
+
+        suffix = os.path.splitext(image.filename)[1] if image.filename else ".jpg"
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            temp_file.write(await image.read())
+            temp_path = temp_file.name
+
+        result = cloudinary.uploader.upload(temp_path)
+
+        return {
+            "url": result["secure_url"],
+            "public_id": result["public_id"]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)

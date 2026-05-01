@@ -68,3 +68,12 @@ class ListingAttributeData(Base):
 
     listing = relationship("Listing", backref="listing_attribute_data")
     attributes = relationship("Attribute", backref="listing_attribute_data")
+
+class ListingImages(Base):
+    __tablename__ = "listing_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    listing_id = Column(Integer, ForeignKey("listing.id"))
+    image_url = Column(String)
+
+    listing = relationship("Listing", backref="listing_images") 

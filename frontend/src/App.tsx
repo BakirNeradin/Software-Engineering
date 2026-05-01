@@ -3,6 +3,7 @@ import CreateCategory from "./views/CreateCategory";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Navbar from "./views/components/Navbar";
 import Listings from "./views/Listings";
+import ImageUpload from "./views/ImageUpload";
 
 
 
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/create" element={<CreateCategory />}></Route>
         <Route path="/categories" element={<Categories />}></Route>
         <Route path="/listings" element={<Listings />}></Route>
+        <Route path="/imageupload" element={<ImageUpload />}></Route>
       </Routes>
     </BrowserRouter>
      </div>
