@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Navbar from "./views/components/Navbar";
 import Listings from "./views/Listings";
 import ImageUpload from "./views/ImageUpload";
+import Login from "./views/Login";
 
 
 
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/categories" element={<Categories />}></Route>
         <Route path="/listings" element={<Listings />}></Route>
         <Route path="/imageupload" element={<ImageUpload />}></Route>
+        <Route path="/login" element={<Login />}></Route>
       </Routes>
     </BrowserRouter>
      </div>

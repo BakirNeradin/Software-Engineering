@@ -6,3 +6,8 @@ class DataTypeEnum(str, Enum):
     NUMBER = "number"
     BOOLEAN = "boolean"
     DATE = "date"
+
+class RoleEnum(str, Enum):
+    USER = "user"
+    ADMIN = "admin"
+    GUEST = "guest"

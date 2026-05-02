@@ -21,14 +21,6 @@ function ImageUpload() {
   console.log(data.url, "test");
 };
 
-  
-
-  
-
-  
-
-  
-
   return (
     <>
     <form onSubmit={uploadImage}>

@@ -1,27 +1,32 @@
 from http.client import HTTPException
-from typing import List, Optional
+from typing import Annotated, List, Optional
 from pydantic import BaseModel
-
+from datetime import timedelta, timezone, datetime
 from sqlalchemy import null
 import cloudinary
-from fastapi import FastAPI, Depends
+import jwt
+from jwt.exceptions import InvalidTokenError
+from pwdlib import PasswordHash
+from fastapi import FastAPI, status, HTTPException, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 
-from constants import DataTypeEnum
+from constants import DataTypeEnum, RoleEnum
 from database import engine, Base, get_db
-from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, User
+from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, UserModel
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+
 from dotenv import load_dotenv
 import cloudinary.uploader
 
 import tempfile
 import os
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 load_dotenv()
 
 app = FastAPI()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -45,14 +50,129 @@ app.add_middleware(
 def root():
     return {"message": "API running"}
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: str | None = None
+
+class User(BaseModel):
+    username: str
+    email: str
+    role: RoleEnum
+    disabled: bool
+
+class UserInDB(User):
+    hashed_password: str
+
+password_hash = PasswordHash.recommended()
+DUMMY_HASH = password_hash.hash("dummypassword")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def verify_password(plain_password, hashed_password):
+    return password_hash.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return password_hash.hash(password)
+
+def get_user(username: str, db: Session = Depends(get_db)):
+    print("prvi")
+    user = db.query(UserModel).filter(UserModel.username == username).first()
+    if user:
+        return user
+
+def authenticate_user(username: str, password: str, db: Session = Depends(get_db)):
+    user = get_user(username, db)
+    if not user:
+        verify_password(password, DUMMY_HASH)
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, os.getenv("HASH_SECRET_KEY"), algorithm=os.getenv("ALGORITHM"))
+    return encoded_jwt
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, os.getenv("HASH_SECRET_KEY"), algorithms=os.getenv("ALGORITHM"))
+        username = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except InvalidTokenError:
+        raise credentials_exception
+    print(token_data.username, "lepe")
+    user = get_user(token_data.username, db)
+    
+    if user is None:
+        raise credentials_exception
+    return user
+
+async def get_current_active_user(
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+@app.post("/token")
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db)
+) -> Token:
+    user = authenticate_user(form_data.username, form_data.password, db)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=float(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")))
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return Token(access_token=access_token, token_type="bearer")
+
+@app.get("/users/me/")
+async def read_users_me(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> User:
+    return current_user
+
 
 @app.post("/users", tags=["Users"])
-def create_user(name: str, email: str, db: Session = Depends(get_db)):
-    user = User(name=name, email=email)
+def create_user(username: str, email: str, password: str, role: RoleEnum, disabled: bool, db: Session = Depends(get_db)):
+    hashed_password = get_password_hash(password)
+    print("zemlja")
+    print(hashed_password)
+    user = UserModel(username=username, email=email, hashed_password=hashed_password,role=role, disabled=disabled)
+    print(user)
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
+
+@app.get("/users", tags=["Users"])
+def get_users(db: Session = Depends(get_db)):
+    return db.query(UserModel).all()
 
 @app.post("/category", tags=["Categories"])
 def create_category(

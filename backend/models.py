@@ -2,15 +2,18 @@ from sqlalchemy import Boolean, Date, DateTime, Enum as SQLEnum
 import datetime
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
-from constants import DataTypeEnum
+from constants import DataTypeEnum, RoleEnum
 from database import Base
 
-class User(Base):
+class UserModel(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
+    username = Column(String,unique=True, index=True)
     email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    role = Column(SQLEnum(RoleEnum))
+    disabled = Column(Boolean, default=False)  
 
 class Category(Base):
     __tablename__ = "categories"
@@ -56,7 +59,7 @@ class Listing(Base):
     description = Column(String)
 
     category = relationship("Category", backref="listing")
-    user = relationship("User", backref="listing")
+    user = relationship("UserModel", backref="listing")
 
 class ListingAttributeData(Base):
     __tablename__ = "listing_attribute_data"
