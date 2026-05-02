@@ -16,7 +16,7 @@ export default function Navbar() {
             <a href="#" className="hover:text-black">
               Home
             </a>
-            <a href="#" className="hover:text-black">
+            <a href="/categories" className="hover:text-black">
               Categories
             </a>
             
@@ -27,9 +27,9 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="hidden items-center gap-4 lg:flex">
-          <button className="rounded-md px-3 py-2 text-sm font-medium bg-white text-slate-800 hover:bg-gray-100">
+          <a href="/login"><button className="rounded-md px-3 py-2 text-sm font-medium bg-white text-slate-800 hover:bg-gray-100">
             Sign in
-          </button>
+          </button></a>
 
           <button className="rounded-md bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-400">
             Sign up

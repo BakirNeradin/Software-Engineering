@@ -9,7 +9,7 @@ from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 from fastapi import FastAPI, status, HTTPException, Depends, UploadFile, File
 from sqlalchemy.orm import Session
-
+import uuid
 from constants import DataTypeEnum, RoleEnum
 from database import engine, Base, get_db
 from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, UserModel
@@ -147,7 +147,7 @@ async def login_for_access_token(
         )
     access_token_expires = timedelta(minutes=float(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")))
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.username, "jti": user.id}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
 
@@ -160,10 +160,11 @@ async def read_users_me(
 
 @app.post("/users", tags=["Users"])
 def create_user(username: str, email: str, password: str, role: RoleEnum, disabled: bool, db: Session = Depends(get_db)):
+    myuuid = str(uuid.uuid4())
     hashed_password = get_password_hash(password)
     print("zemlja")
     print(hashed_password)
-    user = UserModel(username=username, email=email, hashed_password=hashed_password,role=role, disabled=disabled)
+    user = UserModel(id=myuuid, username=username, email=email, hashed_password=hashed_password,role=role, disabled=disabled)
     print(user)
     db.add(user)
     db.commit()
@@ -173,6 +174,13 @@ def create_user(username: str, email: str, password: str, role: RoleEnum, disabl
 @app.get("/users", tags=["Users"])
 def get_users(db: Session = Depends(get_db)):
     return db.query(UserModel).all()
+
+@app.get("/get_role", tags=["Users"])
+def get_users(id: str,db: Session = Depends(get_db)):
+    if not id:
+        return RoleEnum.GUEST
+    user = db.query(UserModel).filter(UserModel.id == id).first()
+    return user.role
 
 @app.post("/category", tags=["Categories"])
 def create_category(

@@ -13,7 +13,7 @@ function Login() {
 
     const data = await res.json();
     if (data.access_token) {
-        localStorage.setItem('jwtToken', data.access_token);
+        localStorage.setItem('token', data.access_token);
     }
     console.log(data);
   };
