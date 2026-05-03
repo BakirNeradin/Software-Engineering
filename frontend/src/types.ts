@@ -24,3 +24,8 @@ export type AttributeData = {
   name: string;
   attribute_id: number;
 };
+
+export type LoginData = {
+  username: string;
+  password: string;
+}

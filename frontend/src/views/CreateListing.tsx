@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Attributes } from "react";
 import type { Attribute, AttributeData, Category } from "../types";
 import AttributeForm from "./components/AttributeForm";
 import { Outlet } from "react-router-dom";
@@ -8,8 +8,9 @@ function CreateCategory() {
   
 
   const [name, setName] = useState("");
-  const [parentId, setParentId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [nullAttributes, setNullAttributes] = useState<Attribute[]>([]);
@@ -34,24 +35,29 @@ function CreateCategory() {
   useEffect(() => {
     fetchCategories();
   }, []);
-  const fetchNullAttributes = async () => {
+
+  const fetchCategeoryAttributes = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/attributes?null_attribute=true`);
+      const fetchUrl = new URL(`${import.meta.env.VITE_API_URL}/attributes_for_create_listing`) 
+      fetchUrl.searchParams.append("category_id", categoryId)
+      const response = await fetch(fetchUrl);
       if (!response.ok) {
         throw new Error("Failed to fetch attributes");
       }
 
-      const data: Attribute[] = await response.json();
-      setNullAttributes(data);
+      const data: [Attribute[], AttributeData[]] = await response.json();
+      setAttributes(data[0]);
+      setAttributeData(data[1]);
     } catch (error) {
       console.error("Error fetching attributes:", error);
     } finally {
       setLoading(false);
     }
   };
+
   useEffect(() => {
-    fetchNullAttributes();
-  }, []);
+    fetchCategeoryAttributes();
+  }, [categoryId]);
 
   const addCategory = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -79,11 +85,12 @@ function CreateCategory() {
         ...attribute,
         category_id: createdCategory.id,
       }));
-      let attributeIDs: number[] = [];
-      nullAttributes.map((attribute) => {
-        attribute.id && attributeIDs.push(attribute.id);
-      });
+      let attributeIDs: number[] = []
+      nullAttributes.map((attribute)=> {
+        attribute.id && attributeIDs.push(attribute.id)
+      }
 
+      )
       if (attributesWithCategoryId.length > 0) {
         const response2 = await fetch(`${import.meta.env.VITE_API_URL}/attributes`, {
           method: "POST",
@@ -99,24 +106,20 @@ function CreateCategory() {
 
         const createdAttributes: AttributeData[] = await response2.json();
         console.log("Attributes added:", createdAttributes);
-        createdAttributes.map((attribute) => {
-          attribute.id && attributeIDs.push(attribute.id);
-        });
+        createdAttributes.map((attribute) =>{
+          attribute.id && attributeIDs.push(attribute.id)
+        }
+
+        )
+        
       }
+      
+      const attributeDataWithAttributeID = attributeData.map((attributeData) => ({
+        ...attributeData,
 
-      const attributeDataWithAttributeID = attributeData.map(
-        (attributeData) => ({
-          ...attributeData,
-
-          attribute_id: attributeIDs[attributeData.attribute_id],
-        }),
-      );
-      console.log(
-        attributeDataWithAttributeID,
-        "pravi",
-        attributeIDs,
-        attributeData,
-      );
+        attribute_id: attributeIDs[attributeData.attribute_id]
+      }));
+      console.log(attributeDataWithAttributeID, "pravi", attributeIDs, attributeData)
       if (attributeDataWithAttributeID.length > 0) {
         const response3 = await fetch(`${import.meta.env.VITE_API_URL}/attribute_datas`, {
           method: "POST",
@@ -132,9 +135,12 @@ function CreateCategory() {
 
         const createdAttributeData = await response3.json();
         console.log("Attributes added:", createdAttributeData);
+        
       }
+
       setName("");
-      setParentId("");
+      setCategoryId("");
+      setDescription("");
       setAttributes([]);
 
       fetchCategories();
@@ -142,19 +148,19 @@ function CreateCategory() {
     } catch (error) {
       console.error("Error adding category:", error);
     }
-    fetchCategories();
   };
 
   return (
     <>
       <head>
-        <title>Create Category</title>
+        <title>Create Listing</title>
       </head>
-      <form onSubmit={addCategory} className="px-18">
+      <form
+        onSubmit={addCategory}
+        className="px-18"
+      >
         <div className="rounded border border-gray-400 px-3 py-2 bg-white">
-          <label htmlFor="name" className="font-medium pr-2">
-            Category name:
-          </label>
+          <label htmlFor="name" className="font-medium pr-2">Listing name:</label>
           <input
             id="name"
             type="text"
@@ -167,17 +173,14 @@ function CreateCategory() {
         </div>
 
         <div className="rounded border border-gray-400 px-3 py-2 bg-white">
-          <label htmlFor="parentId" className="font-medium pr-2">
-            Parent category:
-          </label>
+          <label htmlFor="categoryId" className="font-medium pr-2">Category:</label>
           <select
-            id="parentId"
-            value={parentId}
-            onChange={(e) => setParentId(e.target.value)}
+            id="categoryId"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
             disabled={loading}
             className="border-2"
           >
-            <option value="">No parent</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -185,20 +188,15 @@ function CreateCategory() {
             ))}
           </select>
         </div>
-
-        <button
-          type="submit"
-          className="rounded border border-gray-500 px-4 py-2 bg-white hover:bg-gray-200"
-        >
-          Add Category
-        </button>
+        <div>
+           <label htmlFor="description" className="font-medium pr-2">Category:</label>
+           <textarea id="description" value={description} name="description" onChange={(e) => setDescription(e.target.value)}> </textarea>
+        </div>
+        <button type="submit" className="rounded border border-gray-500 px-4 py-2 bg-white hover:bg-gray-200">Add Listing</button>
       </form>
-      <AttributeForm attributes={attributes} setAttributes={setAttributes} />
-      <AttributeList
-        attributes={[...nullAttributes, ...attributes]}
-        attributeData={attributeData}
-        setAttributeData={setAttributeData}
-      />
+
+      
+      <AttributeList attributes={[...nullAttributes, ...attributes]} attributeData={attributeData} setAttributeData={setAttributeData} />
       <Outlet />
     </>
   );

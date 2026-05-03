@@ -1,12 +1,12 @@
 function Login() {
-  const API_URL = "http://localhost:8000";
+  
 
   const login = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const formData = new FormData(e.currentTarget);
 
-    const res = await fetch(`${API_URL}/token`, {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/token`, {
       method: "POST",
       body: formData,
     });
@@ -20,11 +20,13 @@ function Login() {
 
   return (
     <form onSubmit={login}>
+      <label htmlFor="username">Username: </label>
       <input
         type="text"
         id="username"
         name="username"
       />
+      <label htmlFor="password">Password: </label>
       <input
         type="password"
         id="password"

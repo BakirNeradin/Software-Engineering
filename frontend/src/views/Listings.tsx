@@ -9,12 +9,12 @@ type Listing = {
 };
 
 function Listings() {
-  const API_URL = "http://localhost:8000";
+  
   const [listings, setListings] = useState<Listing[]>([]);
   
 
   const loadListings = async () => {
-    const res = await fetch(`${API_URL}/listings`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/listings`);
     const data = await res.json();
     console.log(data)
     setListings(data);

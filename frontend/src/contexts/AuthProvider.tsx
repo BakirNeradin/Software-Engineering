@@ -5,8 +5,9 @@ import Login from '../views/Login';
 import React from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import type { LoginData } from '../types';
 
-const AuthContext = createContext({token: "",userId: "", login: {}, logout: {}});
+const AuthContext = createContext({token: "",userId: "", userName: "", login: {}, logout: () => {}});
 const TOKEN_KEY = "token";
 
 const router = createBrowserRouter([
@@ -51,13 +52,13 @@ const router = createBrowserRouter([
 export const AuthProvider = ({ children }: {children: React.ReactNode}) => {
     const [token, setToken] = useState(localStorage.getItem(TOKEN_KEY) || "");
     let decoded = token?jwtDecode(token):{jti: ""};
-    console.log(decoded,"najbitnije")
+    const [userName, setUserName] = useState(decoded.sub || "")
     const [userId, setUserId] = useState(decoded.jti || "");
     console.log(localStorage.getItem(TOKEN_KEY), "ovaj printr")
-    const login = async (data: any) => {
+    const login = async (data: LoginData) => {
         try {
             const response = await fetch(
-                'http://localhost:8000/login/',
+                `${import.meta.env.VITE_API_URL}/token`,
                 {
                     method: "POST",
                     headers: {
@@ -71,6 +72,7 @@ export const AuthProvider = ({ children }: {children: React.ReactNode}) => {
                 setToken(result.access_token);
                 decoded = jwtDecode(result.access_token)
                 setUserId(decoded.jti || "")
+                setUserName(decoded.sub || "")
                 localStorage.setItem(TOKEN_KEY, result.access_token);
                 router.navigate('/');
             }
@@ -84,10 +86,11 @@ export const AuthProvider = ({ children }: {children: React.ReactNode}) => {
         setUserId("");
         setToken("");
         localStorage.removeItem(TOKEN_KEY);
+        setUserName("")
     }
 
     return (
-        <AuthContext.Provider value={{ token, userId, login, logout }}>
+        <AuthContext.Provider value={{ token, userId, userName, login, logout }}>
             {children}
         </AuthContext.Provider>
     )

@@ -9,12 +9,13 @@ type Category = {
 };
 
 function Categories() {
-  const API_URL = "http://localhost:8000";
+  
   const [categories, setCategories] = useState<Category[]>([]);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const loadCategories = async () => {
-    const res = await fetch(`${API_URL}/categories`);
+    console.log(import.meta.env.VITE_API_URL)
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/categories`);
     const data = await res.json();
     setCategories(data);
   };

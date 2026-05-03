@@ -2,7 +2,7 @@ import { useState } from "react";
 
 
 function ImageUpload() {  
-  const API_URL = "http://localhost:8000";
+  
   const [file, setFile] = useState<File | null>(null)
   
 
@@ -12,7 +12,7 @@ function ImageUpload() {
   const formData = new FormData();
   formData.append("image", file);
 
-  const res = await fetch(`${API_URL}/upload`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
     method: "POST",
     body: formData,
   });
