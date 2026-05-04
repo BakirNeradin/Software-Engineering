@@ -1,66 +1,71 @@
 import { useAuth } from "../../contexts/AuthProvider";
 
 export default function Navbar() {
-  const {userName, logout} = useAuth()
-  return (
-    <header className="w-full border-b border-gray-200 bg-gray-300 mb-10">
-      <div className="mx-auto flex items-center justify-between px-4 py-3">
-        {/* Left side */}
-        <div className="flex items-center gap-8">
-          {/* Logo */}
-          <div className="flex items-center">
-            <span className="text-5xl font-extrabold leading-none text-green-800">
-              Market
-            </span>
-          </div>
+  const { userName, logout } = useAuth();
 
-          {/* Desktop nav */}
-          <nav className="hidden items-center gap-6 text-[15px] font-medium text-green-800 lg:flex">
-            <a href="#" className="hover:text-black">
+  return (
+    <header className="w-full bg-slate-900 text-white">
+      {/* Top row */}
+      <div className="flex items-center justify-between px-6 py-4">
+        {/* Left */}
+        <div className="flex items-center gap-10">
+          {/* Logo */}
+          <span className="text-3xl font-bold text-orange-400">Market</span>
+
+          {/* Nav */}
+          <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-gray-300">
+            <a href="#" className="hover:text-white transition">
               Home
             </a>
-            <a href="/categories" className="hover:text-black">
+            <a href="/categories" className="hover:text-white transition">
               Categories
             </a>
-            
-
-            
           </nav>
         </div>
 
-        {/* Right side */}
-        {!userName ? <div className="hidden items-center gap-4 lg:flex">
-          <a href="/login"><button className="rounded-md px-3 py-2 text-sm font-medium bg-white text-slate-800 hover:bg-gray-100">
-            Sign in
-          </button></a>
+        {/* Right */}
+        {!userName ? (
+          <div className="hidden lg:flex items-center gap-3">
+            <a href="/login">
+              <button className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white">
+                Sign in
+              </button>
+            </a>
 
-          <button className="rounded-md bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-400">
-            Sign up
-          </button>
-        </div>: <div> <button onClick={logout} className="rounded-md px-3 py-2 text-sm font-medium bg-white text-slate-800 hover:bg-gray-100">
-            Logout
-          </button></div>}
+            <button className="rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 transition">
+              Sign up
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <span className="hidden md:block text-sm text-gray-300">
+              {userName}
+            </span>
+            <button
+              onClick={logout}
+              className="rounded-md border border-gray-600 px-3 py-2 text-sm font-medium hover:bg-gray-800"
+            >
+              Logout
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Search row */}
-      <div className="mx-auto flex items-center gap-4 px-4 pb-4">
-        {/* Search input */}
-        <div className="flex h-14 flex-1 items-center rounded-md border border-gray-300 bg-white px-4 shadow-sm">
-          
+      <div className="flex items-center gap-4 px-6 pb-4">
+        {/* Search */}
+        <div className="flex h-12 flex-1 items-center rounded-md bg-white px-4 text-black">
           <input
             type="text"
-            placeholder="Search"
-            className="w-full border-none bg-transparent text-base outline-none placeholder:text-slate-500"
+            placeholder="Search listings..."
+            className="w-full bg-transparent outline-none text-sm"
           />
         </div>
 
-        {/* Publish buttons */}
-        <button className="hidden h-14 items-center gap-2 rounded-md border border-gray-300 bg-white px-5 text-sm font-semibold text-slate-900 hover:bg-gray-50 md:flex">
-           
+        
+        <button className="hidden md:flex h-12 items-center rounded-md bg-orange-500 px-5 text-sm font-semibold text-white hover:bg-orange-400 transition">
           Publish listing
         </button>
-
-        
       </div>
     </header>
   );

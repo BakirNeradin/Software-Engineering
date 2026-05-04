@@ -2,9 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthProvider";
 
-
-function Login() {
-
+function Registration() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -20,7 +18,7 @@ function Login() {
     const username = formData.get("username")?.toString() || "";
     const password = formData.get("password")?.toString() || "";
 
-   try {
+    try {
       await login({ username, password });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -106,4 +104,4 @@ function Login() {
   );
 }
 
-export default Login;
+export default Registration;

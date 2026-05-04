@@ -14,22 +14,21 @@ function Categories() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const loadCategories = async () => {
-    console.log(import.meta.env.VITE_API_URL)
     const res = await fetch(`${import.meta.env.VITE_API_URL}/categories`);
     const data = await res.json();
     setCategories(data);
   };
 
-  
-
   const toggle = (id: number) => {
-    const newExpanded = new Set(expanded);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpanded(newExpanded);
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
   useEffect(() => {
     loadCategories();
@@ -40,28 +39,74 @@ function Categories() {
     if (children.length === 0) return null;
 
     return (
-      <div className={!parentId ? "grid grid-cols-4 gap-4" : ""}>
+      <div className={parentId === null ? "grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" : "mt-3 space-y-2"}>
         {children.map((category) => {
-          const hasChildren = categories.some(
-            (c) => c.parent_id === category.id,
-          );
+          const hasChildren = categories.some((c) => c.parent_id === category.id);
           const isOpen = (expanded.has(category.id) && rank!==0) || (!expanded.has(category.id) && rank===0);
 
-          return (
-            <div className={!category.parent_id? "border border-b-olive-500 rounded-md bg-white" : ""} style={{paddingLeft: rank*10}} key={category.id} >
-              <span
-              className="flex flex-row gap-1 items-center"
-                onClick={() => toggle(category.id)}
-                style={{ cursor: hasChildren ? "pointer" : "default" }}
+          if (parentId === null) {
+            return (
+              <div
+                key={category.id}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-                {hasChildren && (isOpen ? "▼ " : "▶ ")}
-                {category.name}
-                {hasChildren && (isOpen ? <FontAwesomeIcon icon={faChevronDown}/>: <FontAwesomeIcon icon={faChevronRight}/>)}
-                <div className="p-1">{category.name}</div>
-              </span>
+                <button
+                  type="button"
+                  onClick={() => hasChildren && toggle(category.id)}
+                  className="flex w-full items-center justify-between text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">{category.name}</h2>
+                      <p className="text-sm text-slate-500">
+                        {hasChildren ? "Browse subcategories" : "No subcategories"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {hasChildren && (
+                    <div className="text-slate-900">
+                      <FontAwesomeIcon icon={isOpen ? faChevronDown : faChevronRight} />
+                    </div>
+                  )}
+                </button>
+
+                {hasChildren && isOpen && (
+                  <div className="mt-4 rounded-xl bg-slate-50 p-3">
+                    {renderTree(category.id, rank + 1)}
+                  </div>
+                )}
+              </div>
+            );
+          }
+          return (
+            <div key={category.id} className="rounded-xl border border-slate-200 bg-white">
+              <button
+                type="button"
+                onClick={() => hasChildren && toggle(category.id)}
+                className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition hover:bg-slate-50"
+              >
+                 <div className="flex items-center gap-3">
+                  
+                  <span className="font-medium text-slate-800">{category.name}</span>
+                </div>
+
+                {hasChildren && (
+                  <div className="text-slate-900">
+                    <FontAwesomeIcon icon={isOpen ? faChevronDown : faChevronRight} />
+                  </div>
+                )}
+              </button>
 
               
-            {hasChildren && isOpen && renderTree(category.id, rank+1)}
+            {hasChildren && isOpen && (
+                <div className="border-t border-slate-100 px-3 pb-3 pt-2">
+                  <div className="ml-3 border-l-2 border-slate-200 pl-3">
+                    {renderTree(category.id, rank + 1)}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -70,15 +115,22 @@ function Categories() {
   };
 
   return (
-    <>
-    <head>
-      <title>Categories</title>
-    </head>
-    <div className="px-18 bg-gray-100 ">
+   <div className="min-h-screen bg-slate-100 px-6 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-900">Categories</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Explore all marketplace categories and subcategories.
+        </p>
+      </div>
 
-      {renderTree(null, 0)}
+      {categories.length > 0 ? (
+        renderTree(null, 0)
+      ) : (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
+          Loading categories...
+        </div>
+      )}
     </div>
-    </>
   );
 }
 
