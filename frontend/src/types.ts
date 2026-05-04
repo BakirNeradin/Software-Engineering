@@ -5,6 +5,12 @@ export enum DataTypeEnum {
   DATE = "date",
 }
 
+export enum RoleEnum {
+    USER = "user",
+    ADMIN = "admin",
+    GUEST = "guest"
+}
+
 export type Category = {
   id: number;
   name: string;
@@ -26,6 +32,12 @@ export type AttributeData = {
 };
 
 export type LoginData = {
+  username: string;
+  password: string;
+}
+
+export type RegisterData = {
+  email: string;
   username: string;
   password: string;
 }

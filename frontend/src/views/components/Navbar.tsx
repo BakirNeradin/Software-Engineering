@@ -31,10 +31,11 @@ export default function Navbar() {
                 Sign in
               </button>
             </a>
-
+            <a href="/register">
             <button className="rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 transition">
               Sign up
             </button>
+            </a>
           </div>
         ) : (
           <div className="flex items-center gap-4">

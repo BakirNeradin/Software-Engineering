@@ -9,6 +9,7 @@ import { AuthProvider } from "./contexts/AuthProvider";
 import IsAuthenticated from "./views/components/IsAuthenticated";
 import IsAuthorized from "./views/components/IsAuthorized.tsx";
 import CreateListing from "./views/CreateListing";
+import Registration from "./views/Registration";
 
 
 
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/listings" element={<Listings />}></Route>
             <Route path="/imageupload" element={<ImageUpload />}></Route>
             <Route path="/login" element={<Login />}></Route>
+            <Route path="/register" element={<Registration />}></Route>
             <Route path="/createlisting" element={<CreateListing />}></Route>
           </Routes>
         </BrowserRouter>
