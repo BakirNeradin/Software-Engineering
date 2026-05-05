@@ -206,7 +206,9 @@ def get_users(db: Session = Depends(get_db)):
     return db.query(User).all()
 
 @app.get("/categories", tags=["Categories"])
-def get_categories(db: Session = Depends(get_db)):
+def get_categories(omit_null: Optional[bool] = False, db: Session = Depends(get_db)):
+    if omit_null:
+        return db.query(Category).filter(Category.parent_id != None).all()
     return db.query(Category).all()
 
 @app.post("/attribute", tags=["Attribute"])
@@ -352,7 +354,7 @@ def get_listings(db: Session = Depends(get_db)):
 def create_listing(
     name: str,
     category_id: int,
-    user_id: int,
+    user_id: str,
     description: Optional[str] = None,
 
     

@@ -1,96 +1,63 @@
-import { useState } from "react";
-import { DataTypeEnum, type Attribute, type AttributeData } from "../../types";
+import type { Attribute, AttributeData } from "../../types";
+import { AttributeDataForm } from "./CreateListingAttributeDataForm";
 
 type Props = {
-  attributeData: AttributeData[];
   attribute: Attribute;
-  setAttributeData: React.Dispatch<React.SetStateAction<AttributeData[]>>;
+  attributeData: AttributeData[];
+  listingValues: Record<number, string[]>;
+  setListingValues: React.Dispatch<React.SetStateAction<Record<number, string[]>>>;
   attribute_id: number;
 };
 
-export const AttributeDataForm = ({
-  attributeData,
-  setAttributeData,
-  attribute_id,
+export const CreateListingAttributeCard = ({
   attribute,
+  attributeData,
+  listingValues,
+  setListingValues,
+  attribute_id,
 }: Props) => {
-  const [name, setName] = useState("");
-
-  const addAttribute = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const attribute_data = {
-      name: name,
-      attribute_id: attribute_id,
-    };
-    setAttributeData([...attributeData, attribute_data]);
-    setName("");
-  };
-
   return (
-    <form onSubmit={addAttribute}>
-      {attribute.user_written ? (
-        <div className="rounded border border-gray-400 px-1 py-2 bg-white">
-          <label htmlFor="name">${attribute.name}: </label>
-          {attribute.data_type === DataTypeEnum.BOOLEAN ? (
-            <>
-              <label>
-                <input
-                  type="radio"
-                  name={`attr_${attribute.id}`}
-                  value="true"
-                />
-                Yes
-              </label>
-              <br />
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">
+            {attribute.name}
+          </h3>
+          <p className="text-sm text-slate-500">Listing field</p>
+        </div>
 
-              <label>
-                <input
-                  type="radio"
-                  name={`attr_${attribute.id}`}
-                  value="false"
-                />
-                No
-              </label>
-            </>
-          ) : (
-            <input
-              id={`attr_${attribute.id}`}
-              type={attribute.data_type}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          )}
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+            Type: {attribute.data_type}
+          </span>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              attribute.multiple_choice
+                ? "bg-amber-100 text-amber-700"
+                : "bg-slate-200 text-slate-700"
+            }`}
+          >
+            Multiple: {attribute.multiple_choice ? "Yes" : "No"}
+          </span>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              attribute.user_written
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-rose-100 text-rose-700"
+            }`}
+          >
+            User written: {attribute.user_written ? "Yes" : "No"}
+          </span>
         </div>
-      ) : attribute.multiple_choice ? (
-        <div className="rounded border border-gray-400 px-1 py-2 bg-white">
-          <label htmlFor="name">Attribute data name:</label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
-      ) : (
-        <div className="rounded border border-gray-400 px-1 py-2 bg-white">
-          <label htmlFor="name">Attribute data name:</label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
-      )}
-      <button
-        type="submit"
-        className="rounded border border-gray-500 px-4 py-2 bg-white hover:bg-gray-200"
-      >
-        Add Attribute data
-      </button>
-    </form>
+      </div>
+
+      <AttributeDataForm
+        attribute={attribute}
+        attributeData={attributeData}
+        attribute_id={attribute_id}
+        value={listingValues[attribute_id] || []}
+        setListingValues={setListingValues}
+      />
+    </div>
   );
 };

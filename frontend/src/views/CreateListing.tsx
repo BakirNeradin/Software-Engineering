@@ -1,30 +1,56 @@
-import { useEffect, useState, type Attributes } from "react";
+import { useEffect, useState } from "react";
 import type { Attribute, AttributeData, Category } from "../types";
-import AttributeForm from "./components/AttributeForm";
 import { Outlet } from "react-router-dom";
-import { AttributeList } from "./components/AttributeList";
+import { jwtDecode } from "jwt-decode";
+import { CreateListingAttributeList } from "./components/CreateListingAttributes";
 
-function CreateCategory() {
-  
 
+type DecodedToken = {
+  sub?: string;
+  jti?: string;
+};
+
+type CreateListingDataPayload = {
+  listing_id: number;
+  attribute_id: number;
+  value: string;
+};
+
+const TOKEN_KEY = "token";
+
+function CreateListing() {
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
-  const [nullAttributes, setNullAttributes] = useState<Attribute[]>([]);
   const [attributeData, setAttributeData] = useState<AttributeData[]>([]);
+  const [listingValues, setListingValues] = useState<Record<number, string[]>>(
+    {},
+  );
+  const [error, setError] = useState("");
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+
+  const initialToken = localStorage.getItem(TOKEN_KEY) || "";
+  const initialDecoded: DecodedToken = initialToken
+    ? jwtDecode(initialToken)
+    : {};
+  const userId = initialDecoded.jti || "";
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/categories`);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/categories?omit_null=true`,
+      );
       if (!response.ok) {
         throw new Error("Failed to fetch categories");
       }
 
       const data: Category[] = await response.json();
       setCategories(data);
+      setCategoryId(`${data[0].id}`);
     } catch (error) {
       console.error("Error fetching categories:", error);
     } finally {
@@ -32,15 +58,16 @@ function CreateCategory() {
     }
   };
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategeoryAttributes = async () => {
+  const fetchCategoryAttributes = async () => {
     try {
-      const fetchUrl = new URL(`${import.meta.env.VITE_API_URL}/attributes_for_create_listing`) 
-      fetchUrl.searchParams.append("category_id", categoryId)
-      const response = await fetch(fetchUrl);
+      const effectiveCategoryId = categoryId || "1";
+
+      const fetchUrl = new URL(
+        `${import.meta.env.VITE_API_URL}/attributes_for_create_listing`,
+      );
+      fetchUrl.searchParams.append("category_id", effectiveCategoryId);
+
+      const response = await fetch(fetchUrl.toString());
       if (!response.ok) {
         throw new Error("Failed to fetch attributes");
       }
@@ -48,6 +75,7 @@ function CreateCategory() {
       const data: [Attribute[], AttributeData[]] = await response.json();
       setAttributes(data[0]);
       setAttributeData(data[1]);
+      setListingValues({});
     } catch (error) {
       console.error("Error fetching attributes:", error);
     } finally {
@@ -56,18 +84,24 @@ function CreateCategory() {
   };
 
   useEffect(() => {
-    fetchCategeoryAttributes();
+    document.title = "Create Listing";
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    fetchCategoryAttributes();
   }, [categoryId]);
 
-  const addCategory = async (e: React.FormEvent<HTMLFormElement>) => {
+  const createListing = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitting(true);
+    setError("");
 
-    const url = new URL(`${import.meta.env.VITE_API_URL}/category`);
+    const url = new URL(`${import.meta.env.VITE_API_URL}/create_listing`);
     url.searchParams.append("name", name);
-
-    if (parentId !== "") {
-      url.searchParams.append("parent_id", parentId);
-    }
+    url.searchParams.append("category_id", categoryId);
+    url.searchParams.append("user_id", userId);
+    url.searchParams.append("description", description);
 
     try {
       const response = await fetch(url.toString(), {
@@ -75,131 +109,256 @@ function CreateCategory() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to add category");
+        const err = await response.json();
+        console.log(err);
+        throw new Error(err.detail || "Failed to add listing");
       }
 
-      const createdCategory: Category = await response.json();
-      console.log("Category added:", createdCategory);
+      const createdListing = await response.json();
+      console.log(imageFiles, "selected image files");
+      for (const imageFile of imageFiles) {
+        const formData = new FormData();
+        formData.append("image", imageFile);
 
-      const attributesWithCategoryId = attributes.map((attribute) => ({
-        ...attribute,
-        category_id: createdCategory.id,
-      }));
-      let attributeIDs: number[] = []
-      nullAttributes.map((attribute)=> {
-        attribute.id && attributeIDs.push(attribute.id)
-      }
-
-      )
-      if (attributesWithCategoryId.length > 0) {
-        const response2 = await fetch(`${import.meta.env.VITE_API_URL}/attributes`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        const imageUploadResponse = await fetch(
+          `${import.meta.env.VITE_API_URL}/upload`,
+          {
+            method: "POST",
+            body: formData,
           },
-          body: JSON.stringify(attributesWithCategoryId),
+        );
+
+        if (!imageUploadResponse.ok) {
+          const err = await imageUploadResponse.json();
+          console.log(err);
+          throw new Error(err.detail || "Failed to upload image");
+        }
+
+        const uploadedImage = await imageUploadResponse.json();
+
+        const listingImageUrl = new URL(
+          `${import.meta.env.VITE_API_URL}/create_listing_images`,
+        );
+        listingImageUrl.searchParams.append(
+          "listing_id",
+          String(createdListing.id),
+        );
+        listingImageUrl.searchParams.append("image_url", uploadedImage.url);
+
+        const listingImageResponse = await fetch(listingImageUrl.toString(), {
+          method: "POST",
         });
 
-        if (!response2.ok) {
-          throw new Error("Failed to add attributes");
+        if (!listingImageResponse.ok) {
+          const err = await listingImageResponse.json();
+          console.log(err);
+          throw new Error(err.detail || "Failed to save listing image");
         }
-
-        const createdAttributes: AttributeData[] = await response2.json();
-        console.log("Attributes added:", createdAttributes);
-        createdAttributes.map((attribute) =>{
-          attribute.id && attributeIDs.push(attribute.id)
-        }
-
-        )
-        
       }
-      
-      const attributeDataWithAttributeID = attributeData.map((attributeData) => ({
-        ...attributeData,
 
-        attribute_id: attributeIDs[attributeData.attribute_id]
-      }));
-      console.log(attributeDataWithAttributeID, "pravi", attributeIDs, attributeData)
-      if (attributeDataWithAttributeID.length > 0) {
-        const response3 = await fetch(`${import.meta.env.VITE_API_URL}/attribute_datas`, {
+      const listingDataPayloads: CreateListingDataPayload[] = [];
+
+      for (const [attributeId, values] of Object.entries(listingValues)) {
+        for (const value of values) {
+          if (!value.trim()) continue;
+
+          listingDataPayloads.push({
+            listing_id: createdListing.id,
+            attribute_id: Number(attributeId),
+            value,
+          });
+        }
+      }
+
+      for (const payload of listingDataPayloads) {
+        const listingDataUrl = new URL(
+          `${import.meta.env.VITE_API_URL}/create_listings_data`,
+        );
+
+        listingDataUrl.searchParams.append(
+          "listing_id",
+          String(payload.listing_id),
+        );
+        listingDataUrl.searchParams.append(
+          "attribute_id",
+          String(payload.attribute_id),
+        );
+        listingDataUrl.searchParams.append("value", payload.value);
+
+        const listingDataResponse = await fetch(listingDataUrl.toString(), {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(attributeDataWithAttributeID),
         });
 
-        if (!response3.ok) {
-          throw new Error("Failed to add attributes");
+        if (!listingDataResponse.ok) {
+          const err = await listingDataResponse.json();
+          console.log(err);
+          throw new Error(
+            err.detail || "Failed to add listing attribute value",
+          );
         }
-
-        const createdAttributeData = await response3.json();
-        console.log("Attributes added:", createdAttributeData);
-        
       }
 
       setName("");
       setCategoryId("");
       setDescription("");
       setAttributes([]);
+      setAttributeData([]);
+      setListingValues({});
+      setImageFiles([]);
 
       fetchCategories();
-      fetchNullAttributes();
     } catch (error) {
-      console.error("Error adding category:", error);
+      console.error("Error adding listing:", error);
+      setError(error instanceof Error ? error.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <>
-      <head>
-        <title>Create Listing</title>
-      </head>
-      <form
-        onSubmit={addCategory}
-        className="px-18"
-      >
-        <div className="rounded border border-gray-400 px-3 py-2 bg-white">
-          <label htmlFor="name" className="font-medium pr-2">Listing name:</label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="border-2"
-            placeholder="Type here"
-          />
-        </div>
-
-        <div className="rounded border border-gray-400 px-3 py-2 bg-white">
-          <label htmlFor="categoryId" className="font-medium pr-2">Category:</label>
-          <select
-            id="categoryId"
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            disabled={loading}
-            className="border-2"
-          >
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-        </div>
+    <div className="min-h-screen bg-slate-100 px-4 py-8 md:px-8">
+      <div className="mx-auto max-w-5xl space-y-6">
         <div>
-           <label htmlFor="description" className="font-medium pr-2">Category:</label>
-           <textarea id="description" value={description} name="description" onChange={(e) => setDescription(e.target.value)}> </textarea>
+          <h1 className="text-3xl font-bold text-slate-900">Create Listing</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Add a new marketplace listing and fill in its category-specific
+            details.
+          </p>
         </div>
-        <button type="submit" className="rounded border border-gray-500 px-4 py-2 bg-white hover:bg-gray-200">Add Listing</button>
-      </form>
 
-      
-      <AttributeList attributes={[...nullAttributes, ...attributes]} attributeData={attributeData} setAttributeData={setAttributeData} />
-      <Outlet />
-    </>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <form onSubmit={createListing} className="space-y-5">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div className="space-y-2">
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-semibold text-slate-700"
+                >
+                  Listing name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  disabled={submitting}
+                  placeholder="Enter listing name"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="categoryId"
+                  className="block text-sm font-semibold text-slate-700"
+                >
+                  Category
+                </label>
+                <select
+                  id="categoryId"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  disabled={loading || submitting}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+                >
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="description"
+                className="block text-sm font-semibold text-slate-700"
+              >
+                Description
+              </label>
+              <textarea
+                id="description"
+                value={description}
+                name="description"
+                onChange={(e) => setDescription(e.target.value)}
+                rows={5}
+                disabled={submitting}
+                placeholder="Describe your item..."
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+              />
+            </div>
+            <div className="space-y-2">
+              <label
+                htmlFor="images"
+                className="block text-sm font-semibold text-slate-700"
+              >
+                Listing images
+              </label>
+              <input
+                id="images"
+                type="file"
+                accept="image/*"
+                multiple
+                disabled={submitting}
+                onChange={(e) =>
+                  setImageFiles(Array.from(e.target.files || []))
+                }
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+              />
+              {imageFiles.length > 0 && (
+                <p className="text-sm text-slate-500">
+                  {imageFiles.length} image(s) selected
+                </p>
+              )}
+            </div>
+
+            {error && (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {error}
+              </p>
+            )}
+
+            <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+              <p className="text-xs text-slate-500">
+                Choose a category first to load the correct attribute fields.
+              </p>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-orange-300 disabled:active:scale-100"
+              >
+                {submitting ? "Creating..." : "Add Listing"}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-slate-900">
+              Listing Attributes
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Complete the required details for the selected category.
+            </p>
+          </div>
+
+          <CreateListingAttributeList
+            attributes={attributes}
+            attributeData={attributeData}
+            listingValues={listingValues}
+            setListingValues={setListingValues}
+          />
+          
+        </div>
+
+        <Outlet />
+      </div>
+    </div>
   );
 }
 
-export default CreateCategory;
+export default CreateListing;

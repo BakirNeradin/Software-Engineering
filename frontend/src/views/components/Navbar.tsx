@@ -1,18 +1,31 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthProvider";
 
 export default function Navbar() {
-  const { userName, logout } = useAuth();
+  const { userName, userId, logout } = useAuth();
+
+  const [userRole, setUserRole] = useState<String>("");
+    console.log("ovo je to");
+  
+    
+    const get_role = async (userId: string) => {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/get_role?id=${userId}`);
+      const data = await res.json();
+      setUserRole(data);
+      console.log(data, "DATA");
+    };
+
+    useEffect(() => {
+      get_role(userId)
+  }, [userId]);
+
 
   return (
     <header className="w-full bg-slate-900 text-white">
-      {/* Top row */}
       <div className="flex items-center justify-between px-6 py-4">
-        {/* Left */}
         <div className="flex items-center gap-10">
-          {/* Logo */}
           <span className="text-3xl font-bold text-orange-400">Market</span>
 
-          {/* Nav */}
           <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-gray-300">
             <a href="#" className="hover:text-white transition">
               Home
@@ -20,10 +33,15 @@ export default function Navbar() {
             <a href="/categories" className="hover:text-white transition">
               Categories
             </a>
+            <a href="/listings" className="hover:text-white transition">
+              Listings
+            </a>
+            {userRole === "admin" ? <a href="/create" className="hover:text-white transition">
+              Create Category
+            </a>: null }
           </nav>
         </div>
 
-        {/* Right */}
         {!userName ? (
           <div className="hidden lg:flex items-center gap-3">
             <a href="/login">
@@ -32,9 +50,9 @@ export default function Navbar() {
               </button>
             </a>
             <a href="/register">
-            <button className="rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 transition">
-              Sign up
-            </button>
+              <button className="rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 transition">
+                Sign up
+              </button>
             </a>
           </div>
         ) : (
@@ -52,9 +70,7 @@ export default function Navbar() {
         )}
       </div>
 
-      {/* Search row */}
       <div className="flex items-center gap-4 px-6 pb-4">
-        {/* Search */}
         <div className="flex h-12 flex-1 items-center rounded-md bg-white px-4 text-black">
           <input
             type="text"
@@ -63,10 +79,11 @@ export default function Navbar() {
           />
         </div>
 
-        
-        <button className="hidden md:flex h-12 items-center rounded-md bg-orange-500 px-5 text-sm font-semibold text-white hover:bg-orange-400 transition">
-          Publish listing
-        </button>
+        <a href="/createlisting">
+          <button className="hidden md:flex h-12 items-center rounded-md bg-orange-500 px-5 text-sm font-semibold text-white hover:bg-orange-400 transition">
+            Publish listing
+          </button>
+        </a>
       </div>
     </header>
   );

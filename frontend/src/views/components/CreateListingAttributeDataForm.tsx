@@ -1,96 +1,130 @@
-import { useState } from "react";
 import { DataTypeEnum, type Attribute, type AttributeData } from "../../types";
 
 type Props = {
   attributeData: AttributeData[];
   attribute: Attribute;
-  setAttributeData: React.Dispatch<React.SetStateAction<AttributeData[]>>;
+  setListingValues: React.Dispatch<React.SetStateAction<Record<number, string[]>>>;
   attribute_id: number;
+  value: string[];
 };
 
 export const AttributeDataForm = ({
   attributeData,
-  setAttributeData,
+  setListingValues,
   attribute_id,
   attribute,
+  value,
 }: Props) => {
-  const [name, setName] = useState("");
-
-  const addAttribute = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const attribute_data = {
-      name: name,
-      attribute_id: attribute_id,
-    };
-    setAttributeData([...attributeData, attribute_data]);
-    setName("");
+  const handleSingleValueChange = (newValue: string) => {
+    setListingValues((prev) => ({
+      ...prev,
+      [attribute_id]: newValue ? [newValue] : [],
+    }));
   };
 
-  return (
-    <form onSubmit={addAttribute}>
-      {attribute.user_written ? (
-        <div className="rounded border border-gray-400 px-1 py-2 bg-white">
-          <label htmlFor="name">${attribute.name}: </label>
-          {attribute.data_type === DataTypeEnum.BOOLEAN ? (
-            <>
-              <label>
-                <input
-                  type="radio"
-                  name={`attr_${attribute.id}`}
-                  value="true"
-                />
-                Yes
-              </label>
-              <br />
+  const handleMultiValueChange = (optionValue: string, checked: boolean) => {
+    setListingValues((prev) => {
+      const currentValues = prev[attribute_id] || [];
 
-              <label>
-                <input
-                  type="radio"
-                  name={`attr_${attribute.id}`}
-                  value="false"
-                />
-                No
-              </label>
-            </>
-          ) : (
-            <input
-              id={`attr_${attribute.id}`}
-              type={attribute.data_type}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          )}
-        </div>
-      ) : attribute.multiple_choice ? (
-        <div className="rounded border border-gray-400 px-1 py-2 bg-white">
-          <label htmlFor="name">Attribute data name:</label>
+      if (checked) {
+        return {
+          ...prev,
+          [attribute_id]: [...currentValues, optionValue],
+        };
+      }
+
+      return {
+        ...prev,
+        [attribute_id]: currentValues.filter((v) => v !== optionValue),
+      };
+    });
+  };
+
+  const filteredOptions = attributeData.filter(
+    (ad) => ad.attribute_id === attribute_id
+  );
+
+  return (
+    <div className="space-y-3">
+      <label
+        htmlFor={`attr_${attribute.id}`}
+        className="block text-sm font-semibold text-slate-700"
+      >
+        {attribute.name}
+      </label>
+
+      {attribute.user_written ? (
+        attribute.data_type === DataTypeEnum.BOOLEAN ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50">
+              <input
+                type="radio"
+                name={`attr_${attribute.id}`}
+                value="true"
+                checked={value[0] === "true"}
+                onChange={(e) => handleSingleValueChange(e.target.value)}
+                className="h-4 w-4"
+              />
+              <span className="text-sm text-slate-700">Yes</span>
+            </label>
+
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50">
+              <input
+                type="radio"
+                name={`attr_${attribute.id}`}
+                value="false"
+                checked={value[0] === "false"}
+                onChange={(e) => handleSingleValueChange(e.target.value)}
+                className="h-4 w-4"
+              />
+              <span className="text-sm text-slate-700">No</span>
+            </label>
+          </div>
+        ) : (
           <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            id={`attr_${attribute.id}`}
+            type={attribute.data_type}
+            value={value[0] || ""}
+            onChange={(e) => handleSingleValueChange(e.target.value)}
             required
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
           />
+        )
+      ) : attribute.multiple_choice ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {filteredOptions.map((option, index) => (
+            <label
+              key={index}
+              className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50"
+            >
+              <input
+                type="checkbox"
+                value={option.name}
+                checked={value.includes(option.name)}
+                onChange={(e) =>
+                  handleMultiValueChange(option.name, e.target.checked)
+                }
+                className="h-4 w-4"
+              />
+              <span className="text-sm text-slate-700">{option.name}</span>
+            </label>
+          ))}
         </div>
       ) : (
-        <div className="rounded border border-gray-400 px-1 py-2 bg-white">
-          <label htmlFor="name">Attribute data name:</label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
+        <select
+          id={`attr_${attribute.id}`}
+          value={value[0] || ""}
+          onChange={(e) => handleSingleValueChange(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+        >
+          <option value="">Select value</option>
+          {filteredOptions.map((option, index) => (
+            <option key={index} value={option.name}>
+              {option.name}
+            </option>
+          ))}
+        </select>
       )}
-      <button
-        type="submit"
-        className="rounded border border-gray-500 px-4 py-2 bg-white hover:bg-gray-200"
-      >
-        Add Attribute data
-      </button>
-    </form>
+    </div>
   );
 };

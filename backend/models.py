@@ -54,7 +54,7 @@ class Listing(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
     category_id = Column(Integer, ForeignKey("categories.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(String, ForeignKey("users.id"))
     publishing_date = Column(DateTime, default=datetime.datetime.now)
     description = Column(String)
 
