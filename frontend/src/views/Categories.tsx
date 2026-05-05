@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { faChevronDown, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useEffect, useState } from "react";
 
 type Category = {
   id: number;
@@ -9,7 +9,6 @@ type Category = {
 };
 
 function Categories() {
-  
   const [categories, setCategories] = useState<Category[]>([]);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
@@ -30,6 +29,7 @@ function Categories() {
       return next;
     });
   };
+
   useEffect(() => {
     loadCategories();
   }, []);
@@ -51,14 +51,14 @@ function Categories() {
                 className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
                 <button
-                  type="button"
-                  onClick={() => hasChildren && toggle(category.id)}
+  
+                  
                   className="flex w-full items-center justify-between text-left"
                 >
                   <div className="flex items-center gap-3">
                     
                     <div>
-                      <h2 className="text-lg font-semibold text-slate-900">{category.name}</h2>
+                      <a href={`/listings?category_id=${category.id}`} className="text-lg font-semibold text-slate-900">{category.name}</a>
                       <p className="text-sm text-slate-500">
                         {hasChildren ? "Browse subcategories" : "No subcategories"}
                       </p>
@@ -66,9 +66,9 @@ function Categories() {
                   </div>
 
                   {hasChildren && (
-                    <div className="text-slate-900">
+                    <button onClick={() => hasChildren && toggle(category.id)} className="flex flex-1 justify-end text-slate-900">
                       <FontAwesomeIcon icon={isOpen ? faChevronDown : faChevronRight} />
-                    </div>
+                    </button>
                   )}
                 </button>
 
@@ -80,27 +80,27 @@ function Categories() {
               </div>
             );
           }
+
           return (
             <div key={category.id} className="rounded-xl border border-slate-200 bg-white">
               <button
-                type="button"
-                onClick={() => hasChildren && toggle(category.id)}
+            
+                
                 className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition hover:bg-slate-50"
               >
-                 <div className="flex items-center gap-3">
+                <a href={`/listings?category_id=${category.id}`} className="flex items-center gap-3">
                   
                   <span className="font-medium text-slate-800">{category.name}</span>
-                </div>
+                </a>
 
                 {hasChildren && (
-                  <div className="text-slate-900">
+                  <button onClick={() => hasChildren && toggle(category.id)} className="flex flex-1 justify-end text-slate-900">
                     <FontAwesomeIcon icon={isOpen ? faChevronDown : faChevronRight} />
-                  </div>
+                  </button>
                 )}
               </button>
 
-              
-            {hasChildren && isOpen && (
+              {hasChildren && isOpen && (
                 <div className="border-t border-slate-100 px-3 pb-3 pt-2">
                   <div className="ml-3 border-l-2 border-slate-200 pl-3">
                     {renderTree(category.id, rank + 1)}
@@ -115,7 +115,7 @@ function Categories() {
   };
 
   return (
-   <div className="min-h-screen bg-slate-100 px-6 py-8">
+    <div className="min-h-screen bg-slate-100 px-6 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900">Categories</h1>
         <p className="mt-2 text-sm text-slate-600">

@@ -8,7 +8,7 @@ type Listing = {
 
 export const ListingCard = ({ listing }: { listing: Listing }) => {
   return (
-    <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+    <a href={`/listing/${listing.id}`}className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
       
       {/* Title */}
       <h2 className="text-lg font-semibold text-slate-900 group-hover:text-orange-500 transition">
@@ -30,6 +30,6 @@ export const ListingCard = ({ listing }: { listing: Listing }) => {
           View
         </button>
       </div>
-    </div>
+    </a>
   );
 };

@@ -25,6 +25,19 @@ export type Attribute = {
   user_written: boolean;
 };
 
+export type ListingImage = {
+  image_url: string;
+  id: number;
+  listing_id: number;
+}
+export type Listing = {
+  id: number;
+  name: string;
+  category_id: number;
+  user_id: number;
+  description: string;
+};
+
 export type AttributeData = {
   id?: number;
   name: string;
@@ -40,4 +53,11 @@ export type RegisterData = {
   email: string;
   username: string;
   password: string;
+}
+
+export type ListingAttributeData = {
+  attribute_id: number;
+  value: string;
+  listing_id: number;
+  id: number;
 }

@@ -1,15 +1,20 @@
-from http.client import HTTPException
-from typing import Annotated, List, Optional
-from pydantic import BaseModel
 from datetime import timedelta, timezone, datetime
-from sqlalchemy import null, or_
+from http.client import HTTPException
+import json
+from typing import Annotated, List, Optional
+import uuid
+
 import cloudinary
 import jwt
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
-from fastapi import FastAPI, status, HTTPException, Depends, UploadFile, File
+from pydantic import BaseModel
+from sqlalchemy import Float, and_, cast, null, or_, select
+
+from fastapi import FastAPI, Query, status, HTTPException, Depends, UploadFile, File
 from sqlalchemy.orm import Session
-import uuid
+
+from filters import CategoryFilter, ExactFilter, Filter, RangeFilter, SearchFilter
 from constants import DataTypeEnum, RoleEnum
 from database import engine, Base, get_db
 from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, UserModel
@@ -34,7 +39,9 @@ cloudinary.config(
     api_secret=os.getenv("CLOUDINARY_API_SECRET")
 )
 
-# create tables
+
+
+
 Base.metadata.create_all(bind=engine)
 
 
@@ -79,7 +86,6 @@ def get_password_hash(password):
     return password_hash.hash(password)
 
 def get_user(username: str, db: Session = Depends(get_db)):
-    print("prvi")
     user = db.query(UserModel).filter(UserModel.username == username).first()
     if user:
         return user
@@ -119,7 +125,6 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Se
         token_data = TokenData(username=username)
     except InvalidTokenError:
         raise credentials_exception
-    print(token_data.username, "lepe")
     user = get_user(token_data.username, db)
     
     if user is None:
@@ -156,16 +161,12 @@ async def read_users_me(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> User:
     return current_user
-
-
+    
 @app.post("/users", tags=["Users"])
 def create_user(username: str, email: str, password: str, role: RoleEnum, disabled: bool, db: Session = Depends(get_db)):
     myuuid = str(uuid.uuid4())
     hashed_password = get_password_hash(password)
-    print("zemlja")
-    print(hashed_password)
     user = UserModel(id=myuuid, username=username, email=email, hashed_password=hashed_password,role=role, disabled=disabled)
-    print(user)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -201,9 +202,7 @@ def create_category(
     return category
 
 
-@app.get("/users", tags=["Users"])
-def get_users(db: Session = Depends(get_db)):
-    return db.query(User).all()
+
 
 @app.get("/categories", tags=["Categories"])
 def get_categories(omit_null: Optional[bool] = False, db: Session = Depends(get_db)):
@@ -236,13 +235,13 @@ class AttributeClass(BaseModel):
     user_written: bool
     multiple_choice: bool
 
+
 @app.post("/attributes", tags=["Attribute"])
 def create_attribute(
     attributes: List[AttributeClass],
     db: Session = Depends(get_db)
 ):
     created_attributes = []
-    print(attributes)
     for att in attributes:
         attribute = Attribute(
             name=att.name,
@@ -270,6 +269,7 @@ def get_attributes(null_attribute: Optional[bool] = False, db: Session = Depends
          
     return query.all()
 
+
 @app.get("/attributes_for_create_listing", tags=["Attribute"])
 def get_attributes(category_id: Optional[int] = None, db: Session = Depends(get_db)):
     attribute_query = db.query(Attribute).filter(or_(
@@ -280,9 +280,7 @@ def get_attributes(category_id: Optional[int] = None, db: Session = Depends(get_
     for att in attribute_query:
         filtered_ids.append(att.id)
 
-    print(filtered_ids, "idovi filter")
     data_query = db.query(AttributeData).filter(AttributeData.attribute_id.in_(filtered_ids)).all()
-    print(data_query)
 
 
     return [attribute_query, data_query]
@@ -305,6 +303,8 @@ def create_attribute_data(
 def get_attributes(db: Session = Depends(get_db)):
     return db.query(AttributeData).all()
 
+
+
 class AttributeDataClass(BaseModel):
     name: str
     attribute_id: int
@@ -313,13 +313,10 @@ class AttributeDataClass(BaseModel):
 @app.post("/attribute_datas", tags=["Attribute data"])
 def create_attribute_datas(
     attribute_data: List[AttributeDataClass],
-    db: Session = Depends(get_db)
-    
+    db: Session = Depends(get_db) 
 ):
     
-
     created_attribute_data= []
-    print(attribute_data)
     for att in attribute_data:
         attribute_data = AttributeData(
             name=att.name,
@@ -338,6 +335,7 @@ def create_attribute_datas(
 
     return created_attribute_data
 
+
 @app.get("/attribute_datas", tags=["Attribute data"])
 def get_attribute_datas(
     attribute_ids: List[int],
@@ -345,10 +343,84 @@ def get_attribute_datas(
 ):
     return db.query(AttributeData).filter(AttributeData.attribute_id in attribute_ids).all()
 
-@app.get("/listings", tags=["Listing"])
-def get_listings(db: Session = Depends(get_db)):
-    return db.query(Listing).all()
 
+
+@app.get("/listings", tags=["Listing"])
+def get_listings(filters: str = Query(default='[]'), db: Session = Depends(get_db)):
+    raw = json.loads(filters)
+
+    parsed_filters: list[Filter] = [
+        ExactFilter(**f) if f['type'] == 'exact' else SearchFilter(**f) if f["type"]=="search" else CategoryFilter(**f) if f["type"]=="category_id" else RangeFilter(**f)
+        for f in raw
+    ]
+    query = select(Listing)
+    search = ""
+    category_id = ""
+    matching_category_ids = []
+    matching_listing_ids = None
+    for f in parsed_filters:
+        
+        if isinstance(f, ExactFilter):
+            matching_listing_ids = select(ListingAttributeData.listing_id).where(
+                and_(
+                    ListingAttributeData.attribute_id == f.attributeId,
+                    ListingAttributeData.value == f.value
+                )
+            )
+
+        elif isinstance(f, RangeFilter):
+            conditions = [ListingAttributeData.attribute_id == f.attributeId]
+
+            if f.from_ is not None:
+                conditions.append(cast(ListingAttributeData.value, Float) >= float(f.from_))
+            if f.to is not None:
+                conditions.append(cast(ListingAttributeData.value, Float) <= float(f.to))
+
+            matching_listing_ids = select(ListingAttributeData.listing_id).where(and_(*conditions))
+        elif isinstance(f, SearchFilter):
+            search = f.value
+        
+        elif isinstance(f, CategoryFilter):
+            category_id = f.value
+    if category_id != "":
+        category_query = db.query(Category).all()
+
+        for category in category_query:
+            if category.id == int(category_id):
+                matching_category_ids.append(category.id)
+        matching_category_ids_count = 0
+        while matching_category_ids_count < len(matching_category_ids):
+            matching_category_ids_count = len(matching_category_ids)
+            for category in category_query:
+                if category.parent_id in matching_category_ids and category.id not in matching_category_ids:
+                    matching_category_ids.append(category.id)
+            
+        
+    if matching_listing_ids != None:
+        if category_id != "":
+            query = query.where(and_(Listing.name.ilike(f'%{search}%')),(Listing.id.in_(matching_listing_ids)), (Listing.category_id.in_(matching_category_ids)))
+        
+        else:
+            query = query.where(and_(Listing.name.ilike(f'%{search}%')),(Listing.id.in_(matching_listing_ids)))
+    else:
+        if category_id != "":
+            query = query.where(and_(Listing.name.ilike(f'%{search}%')),(Listing.category_id.in_(matching_category_ids)))
+        else:
+            query = query.where(Listing.name.ilike(f'%{search}%'))
+    return db.execute(query).scalars().all()
+
+@app.get("/listing_by_id", tags=["Listing"])
+def get_listings(id: int, db: Session = Depends(get_db)):
+    listing_data = db.query(Listing).filter(Listing.id == id).first()
+    attributes = db.query(Attribute).filter(or_(Attribute.category_id == listing_data.category_id, Attribute.category_id == None)).all()
+    listing_attribute_data = db.query(ListingAttributeData).filter(ListingAttributeData.listing_id == id).all()
+    images = db.query(ListingImages).filter(ListingImages.listing_id == id).all()
+    return {
+        "listing": listing_data,
+        "attributes": attributes,
+        "listing_attribute_data": listing_attribute_data,
+        "images": images
+    }
 
 @app.post("/create_listing", tags=["Listing"])
 def create_listing(
@@ -409,7 +481,6 @@ def create_image_listing(
 
 @app.post("/upload", tags=["Upload image"])
 async def upload_image(image: UploadFile = File(...)):
-    print(image)
     temp_path = None
     try:
         if not image.content_type or not image.content_type.startswith("image/"):
