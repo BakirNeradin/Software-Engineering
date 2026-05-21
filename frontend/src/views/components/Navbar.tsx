@@ -1,24 +1,31 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthProvider";
+import { useNavigate } from "react-router-dom";
+
 
 export default function Navbar() {
   const { userName, userId, logout } = useAuth();
-
-  const [userRole, setUserRole] = useState<String>("");
-    console.log("ovo je to");
+  const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+    
   
     
     const get_role = async (userId: string) => {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/get_role?id=${userId}`);
       const data = await res.json();
       setUserRole(data);
-      console.log(data, "DATA");
+      
     };
 
     useEffect(() => {
       get_role(userId)
   }, [userId]);
 
+  const search = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    navigate(`/listings?search=${searchTerm}`)
+  }
 
   return (
     <header className="w-full bg-slate-900 text-white">
@@ -71,13 +78,15 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-4 px-6 pb-4">
-        <div className="flex h-12 flex-1 items-center rounded-md bg-white px-4 text-black">
+        <form onSubmit={search} className="flex h-12 flex-1 items-center rounded-md bg-white px-4 text-black">
           <input
             type="text"
             placeholder="Search listings..."
             className="w-full bg-transparent outline-none text-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </div>
+        </form>
 
         <a href="/createlisting">
           <button className="hidden md:flex h-12 items-center rounded-md bg-orange-500 px-5 text-sm font-semibold text-white hover:bg-orange-400 transition">

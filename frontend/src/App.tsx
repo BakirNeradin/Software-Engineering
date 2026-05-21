@@ -17,8 +17,8 @@ export default function App() {
     <>
     <div className="bg-gray-100">
     <AuthProvider>
-        <Navbar></Navbar>
         <BrowserRouter>
+        <Navbar></Navbar>
           <Routes>
             <Route path="/" element={<Categories />} />
             <Route path="/categories" element={<Categories />}></Route>
