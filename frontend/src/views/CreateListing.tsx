@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Attribute, AttributeData, Category } from "../types";
 import { Outlet } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { CreateListingAttributeList } from "./components/CreateListingAttributes";
+import { CreateListingAttribute } from "./components/CreateListingAttributes";
 
 
 type DecodedToken = {
@@ -115,7 +115,6 @@ function CreateListing() {
       }
 
       const createdListing = await response.json();
-      console.log(imageFiles, "selected image files");
       for (const imageFile of imageFiles) {
         const formData = new FormData();
         formData.append("image", imageFile);
@@ -144,6 +143,7 @@ function CreateListing() {
           String(createdListing.id),
         );
         listingImageUrl.searchParams.append("image_url", uploadedImage.url);
+        console.log(uploadedImage.url)
 
         const listingImageResponse = await fetch(listingImageUrl.toString(), {
           method: "POST",
@@ -346,7 +346,7 @@ function CreateListing() {
             </p>
           </div>
 
-          <CreateListingAttributeList
+          <CreateListingAttribute
             attributes={attributes}
             attributeData={attributeData}
             listingValues={listingValues}

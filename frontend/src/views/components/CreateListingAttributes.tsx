@@ -8,7 +8,7 @@ type Props = {
   setListingValues: React.Dispatch<React.SetStateAction<Record<number, string[]>>>;
 };
 
-export const CreateListingAttributeList = ({
+export const CreateListingAttribute = ({
   attributes,
   attributeData,
   listingValues,
