@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ListingCard } from "./components/ListingCard";
-import type { Listing } from "../types";
+import type { Listing, ListingAttributeData, ListingImage } from "../types";
 import { useFilters } from "../hooks/useFilter";
 import Categories from "./Categories";
 import { FilterBar } from "./components/FilterBar";
@@ -10,6 +10,8 @@ import { useSearchParams } from "react-router-dom";
 
 function Listings() {
   const [listings, setListings] = useState<Listing[]>([]);
+  const [listingsData, setListingsData] = useState<ListingAttributeData[]>([]);
+  const [listingImages, setListingImages] = useState<ListingImage[]>([]);
   const { filters } = useFilters();
   const [searchParams] = useSearchParams();
   const category_id = searchParams.get("category_id")
@@ -22,7 +24,21 @@ function Listings() {
     setListings(data);
   };
 
+  const loadListingData = async () => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/listings_attribute_data`);
+    const data = await res.json();
+    setListingsData(data);
+  };
+
+  const loadListingImages = async () => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/listing_images`);
+    const data = await res.json();
+    setListingImages(data);
+  };
+
   useEffect(() => {
+    loadListingImages();
+    loadListingData();
     loadListings();
   }, [searchParams]);
 
@@ -44,7 +60,7 @@ function Listings() {
         {listings.length > 0 && (
         <div className="items-start w-full auto-rows-min grid max-w-6xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {listings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+            <ListingCard listingsData={listingsData} listingImages={listingImages} key={listing.id} listing={listing} />
           ))}
           
         </div>)}

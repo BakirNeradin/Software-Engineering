@@ -361,10 +361,12 @@ def get_listings(filters: str = Query(default='[]'), db: Session = Depends(get_d
     for f in parsed_filters:
         
         if isinstance(f, ExactFilter):
+            print(f.value.split(","))
+            values=f.value.split(",")
             matching_listing_ids = select(ListingAttributeData.listing_id).where(
                 and_(
                     ListingAttributeData.attribute_id == f.attributeId,
-                    ListingAttributeData.value == f.value
+                    ListingAttributeData.value.in_(values)
                 )
             )
 
