@@ -48,7 +48,7 @@ function Categories({isListingsPage = false}: {isListingsPage?: boolean}) {
             return (
               <div
                 key={category.id}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                className="hover:border-orange-200 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
                 <button
   
@@ -82,7 +82,7 @@ function Categories({isListingsPage = false}: {isListingsPage?: boolean}) {
           }
 
           return (
-            <div key={category.id} className="rounded-xl border border-slate-200 bg-white">
+            <div key={category.id} className="rounded-xl border border-slate-200 bg-white hover:border-orange-200">
               <button
             
                 
