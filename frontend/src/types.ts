@@ -77,4 +77,9 @@ export type Locations = {
   name: string; 
 }
 
-
+export type UserMessages = {
+  sender_id: string;
+  recipient_id: string;
+  message: string;
+  message_date: Date;
+}

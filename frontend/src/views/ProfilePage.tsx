@@ -40,9 +40,9 @@ function ProfilePage() {
   }, []);
   console.log(listings)
   return (
-    user?
+    user && userId ? 
     <div>
-    <ProfilePageInfo userData={user}></ProfilePageInfo>
+    <ProfilePageInfo userId={userId} userData={user}></ProfilePageInfo>
     <ProfilePageListings listings={listings} listingImages={listingImages} listingsData={listingsData}></ProfilePageListings>
     </div>
     : null

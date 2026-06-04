@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from filters import CategoryFilter, ExactFilter, Filter, RangeFilter, SearchFilter
 from constants import DataTypeEnum, RoleEnum
 from database import engine, Base, get_db
-from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, Location, UserModel
+from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, Location, UserMessages, UserModel
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -539,3 +539,42 @@ async def upload_image(image: UploadFile = File(...)):
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+
+@app.get("/user_messages", tags=["Messages"])
+def get_messages(db: Session = Depends(get_db)):
+    return db.query(UserMessages).all()
+
+@app.get("/user_message_by_ids", tags=["Messages"])
+def get_messages(sender_id: str, recipient_id: str, db: Session = Depends(get_db)):
+    return (
+        db.query(UserMessages)
+        .filter(
+            or_(
+                and_(
+                    UserMessages.recipient_id == sender_id,
+                    UserMessages.sender_id == recipient_id,
+                ),
+                and_(
+                    UserMessages.recipient_id == recipient_id,
+                    UserMessages.sender_id == sender_id,
+                ),
+            )
+        )
+        .order_by(UserMessages.message_date.asc())
+        .all()
+    )
+
+@app.post("/user_messages", tags=["Messages"])
+def send_message(
+    sender_id: str,
+    recipient_id: str,
+    message: str,
+    
+    db: Session = Depends(get_db)
+):
+    message = UserMessages(sender_id=sender_id, recipient_id=recipient_id, message=message)
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    return message

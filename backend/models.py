@@ -92,3 +92,26 @@ class ListingImages(Base):
     image_url = Column(String)
 
     listing = relationship("Listing", backref="listing_images")
+
+class UserMessages(Base):
+    __tablename__ = "user_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    sender_id = Column(String, ForeignKey("users.id"))
+    recipient_id = Column(String, ForeignKey("users.id"))
+    message = Column(String)
+    message_date = Column(DateTime, default=datetime.datetime.now)
+
+    sender = relationship(
+        "UserModel",
+        foreign_keys=[sender_id],
+        backref="sent_messages"
+    )
+
+    recipient = relationship(
+        "UserModel",
+        foreign_keys=[recipient_id],
+        backref="received_messages"
+    )
+    
