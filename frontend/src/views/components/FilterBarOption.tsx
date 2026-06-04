@@ -1,22 +1,25 @@
 import { useEffect, useState } from "react";
-import type { Attribute, AttributeData } from "../../types";
+import type { Attribute, AttributeData, Locations } from "../../types";
 import { useFilters } from "../../hooks/useFilter";
 
 
 export const FilterBarOption = ({
   attribute,
   attributeData,
+  locations,
 }: {
   attribute: Attribute;
   attributeData: AttributeData[];
+  locations: Locations[];
 }) => {
   const [selectedAttributeData, setSelectedAttributeData] = useState<string>("");
   const { filters, setFilters } = useFilters();
   const inputId = `filter-option-${attribute.id}`;
 
-  const filteredOptions = attributeData.filter(
+  const filteredOptions = attribute.id=== 2 ? locations : attributeData.filter(
     (ad) => ad.attribute_id === attribute.id,
   );
+  console.log(filteredOptions)
 
   useEffect(() => {
     setFilters([

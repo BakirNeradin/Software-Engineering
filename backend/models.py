@@ -1,5 +1,6 @@
-from sqlalchemy import Boolean, Date, DateTime, Enum as SQLEnum
 import datetime
+
+from sqlalchemy import Boolean, Date, DateTime, Enum as SQLEnum
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from constants import DataTypeEnum, RoleEnum
@@ -12,8 +13,18 @@ class UserModel(Base):
     username = Column(String,unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
     role = Column(SQLEnum(RoleEnum))
-    disabled = Column(Boolean, default=False)  
+    disabled = Column(Boolean, default=False)    
+
+    location = relationship("Location", backref="users")
+
+class Location(Base):
+    __tablename__ = "locations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+
 
 class Category(Base):
     __tablename__ = "categories"
@@ -58,6 +69,7 @@ class Listing(Base):
     publishing_date = Column(DateTime, default=datetime.datetime.now)
     description = Column(String)
 
+
     category = relationship("Category", backref="listing")
     user = relationship("UserModel", backref="listing")
 
@@ -79,4 +91,4 @@ class ListingImages(Base):
     listing_id = Column(Integer, ForeignKey("listing.id"))
     image_url = Column(String)
 
-    listing = relationship("Listing", backref="listing_images") 
+    listing = relationship("Listing", backref="listing_images")

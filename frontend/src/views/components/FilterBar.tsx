@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DataTypeEnum, type Attribute, type AttributeData } from "../../types";
+import { DataTypeEnum, type Attribute, type AttributeData, type Locations } from "../../types";
 import { FilterBarOption } from "./FilterBarOption";
 import { FilterBarRange } from "./FilterBarRange";
 import { FilterBarBoolean } from "./FilterBarBoolean";
@@ -8,6 +8,7 @@ import { FilterBarMultiple } from "./FilterBarMultiple";
 
 export const FilterBar = ({ categoryId }: { categoryId?: string }) => {
   const [attributeCat, setAttributeCat] = useState<Attribute[]>([]);
+  const [locations, setLocations] = useState<Locations[]>([]);
   const [attributeCatData, setAttributeCatData] = useState<AttributeData[]>([]);
 
   const loadAttributesFilter = async () => {
@@ -16,14 +17,22 @@ export const FilterBar = ({ categoryId }: { categoryId?: string }) => {
         categoryId ? `?category_id=${categoryId}` : ""
       }`,
     );
+    
     const data = await res.json();
     setAttributeCat(data[0]);
     setAttributeCatData(data[1]);
   };
+  const loadLocations = async () => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/locations`);
+    const data = await res.json();
+    setLocations(data);
+  };
 
   useEffect(() => {
     loadAttributesFilter();
+    loadLocations();
   }, [categoryId]);
+  console.log(locations, "da znamo sta je")
 
   return (
     <div className="mx-auto mb-6 w-full max-w-368 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -47,6 +56,7 @@ export const FilterBar = ({ categoryId }: { categoryId?: string }) => {
             />
           ) : !ac.user_written && ac.data_type !== DataTypeEnum.BOOLEAN ? (
             <FilterBarOption
+              locations={locations}
               attributeData={attributeCatData}
               key={ac.id}
               attribute={ac}

@@ -29,7 +29,6 @@ function CreateCategory() {
     }
   };
 
-  
   const fetchNullAttributes = async () => {
     try {
       const response = await fetch(
@@ -38,15 +37,17 @@ function CreateCategory() {
       if (!response.ok) {
         throw new Error("Failed to fetch attributes");
       }
-
+      
       const data: Attribute[] = await response.json();
-      setNullAttributes(data);
+      const filteredData = data.filter((d)=>d.id !== 2)
+      setNullAttributes(filteredData);
     } catch (error) {
       console.error("Error fetching attributes:", error);
     } finally {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     document.title = "Create Category";
     fetchCategories();
@@ -79,6 +80,7 @@ function CreateCategory() {
         ...attribute,
         category_id: createdCategory.id,
       }));
+
       const attributeIDs: number[] = [];
 
       nullAttributes.forEach((attribute) => {
@@ -100,6 +102,7 @@ function CreateCategory() {
 
         const createdAttributes: AttributeData[] = await response2.json();
         console.log("Attributes added:", createdAttributes);
+
         createdAttributes.forEach((attribute) => {
           if (attribute.id) attributeIDs.push(attribute.id);
         });
@@ -108,9 +111,10 @@ function CreateCategory() {
       const attributeDataWithAttributeID = attributeData.map((item) => ({
         ...item,
         attribute_id: attributeIDs[item.attribute_id],
-        }),
-      );
-      
+      }));
+
+      console.log(attributeDataWithAttributeID, "pravi", attributeIDs, attributeData);
+
       if (attributeDataWithAttributeID.length > 0) {
         const response3 = await fetch(`${import.meta.env.VITE_API_URL}/attribute_datas`, {
           method: "POST",
@@ -127,6 +131,7 @@ function CreateCategory() {
         const createdAttributeData = await response3.json();
         console.log("Attribute data added:", createdAttributeData);
       }
+
       setName("");
       setParentId("");
       setAttributes([]);
@@ -137,7 +142,6 @@ function CreateCategory() {
     } catch (error) {
       console.error("Error adding category:", error);
     }
-    fetchCategories();
   };
 
   return (
@@ -151,7 +155,7 @@ function CreateCategory() {
           </p>
         </div>
 
-         {/* Main form card */}
+        {/* Main form card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <form onSubmit={addCategory} className="space-y-5">
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
@@ -233,7 +237,8 @@ function CreateCategory() {
             />
           </div>
         </div>
-       <Outlet />
+
+        <Outlet />
       </div>
     </div>
   );

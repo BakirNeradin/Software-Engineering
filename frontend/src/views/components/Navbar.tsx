@@ -64,9 +64,9 @@ export default function Navbar() {
           </div>
         ) : (
           <div className="flex items-center gap-4">
-            <span className="hidden md:block text-sm text-gray-300">
+            <a href={`/profilepage/${userId}`} className="hidden md:block text-sm text-gray-300">
               {userName}
-            </span>
+            </a>
             <button
               onClick={logout}
               className="rounded-md border border-gray-600 px-3 py-2 text-sm font-medium hover:bg-gray-800"

@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from filters import CategoryFilter, ExactFilter, Filter, RangeFilter, SearchFilter
 from constants import DataTypeEnum, RoleEnum
 from database import engine, Base, get_db
-from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, UserModel
+from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, Location, UserModel
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -69,6 +69,7 @@ class User(BaseModel):
     username: str
     email: str
     role: RoleEnum
+    location_id: int
     disabled: bool
 
 class UserInDB(User):
@@ -175,6 +176,18 @@ def create_user(username: str, email: str, password: str, role: RoleEnum, disabl
 @app.get("/users", tags=["Users"])
 def get_users(db: Session = Depends(get_db)):
     return db.query(UserModel).all()
+
+@app.get("/locations", tags=["Location"])
+def get_locations(db: Session = Depends(get_db)):
+    return db.query(Location).all()
+
+@app.get("/location_by_id", tags=["Location"])
+def get_locations(id: int,db: Session = Depends(get_db)):
+    return db.query(Location).filter(Location.id == id).first()
+
+@app.get("/get_user_by_id",response_model=User, tags=["Users"])
+def get_user_by_id(user_id: str, db: Session = Depends(get_db)):
+    return db.query(UserModel).filter(UserModel.id == user_id).first()
 
 @app.get("/get_role", tags=["Users"])
 def get_users(id: str,db: Session = Depends(get_db)):
@@ -420,6 +433,24 @@ def get_listings(id: int, db: Session = Depends(get_db)):
     return {
         "listing": listing_data,
         "attributes": attributes,
+        "listing_attribute_data": listing_attribute_data,
+        "images": images
+    }
+
+
+@app.get("/listing_by_user_id", tags=["Listing"])
+def get_listings(user_id: str, db: Session = Depends(get_db)):
+    listing_data = db.query(Listing).filter(Listing.user_id == user_id).all()
+    if (len(listing_data) == 0):
+        return {
+        "listings": [],
+        "listing_attribute_data": [],
+        "images": []
+    }
+    listing_attribute_data = db.query(ListingAttributeData).all()
+    images = db.query(ListingImages).all()
+    return {
+        "listings": listing_data,
         "listing_attribute_data": listing_attribute_data,
         "images": images
     }
