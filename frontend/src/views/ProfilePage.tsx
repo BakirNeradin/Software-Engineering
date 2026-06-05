@@ -3,6 +3,7 @@ import type { Listing, ListingAttributeData, ListingImage, User } from "../types
 import { useParams } from "react-router-dom";
 import ProfilePageListings from "./components/ProfilePageListings";
 import ProfilePageInfo from "./components/ProfilePageInfo";
+import { BuyPoints } from "./components/BuyPoints";
 
 
 
@@ -27,6 +28,7 @@ function ProfilePage() {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/get_user_by_id?user_id=${userId}`);
     const data = await res.json();
     setUser(data);
+    console.log("ova data", data)
   };
  
   
@@ -42,7 +44,10 @@ function ProfilePage() {
   return (
     user && userId ? 
     <div>
+      <div className="flex sm:flex-row flex-col items-center">
     <ProfilePageInfo userId={userId} userData={user}></ProfilePageInfo>
+    <BuyPoints userId={userId}></BuyPoints>
+      </div>
     <ProfilePageListings listings={listings} listingImages={listingImages} listingsData={listingsData}></ProfilePageListings>
     </div>
     : null

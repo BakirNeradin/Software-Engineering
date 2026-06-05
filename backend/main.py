@@ -11,7 +11,7 @@ from pwdlib import PasswordHash
 from pydantic import BaseModel
 from sqlalchemy import Float, and_, cast, null, or_, select
 
-from fastapi import FastAPI, Query, status, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, Query, Request, status, HTTPException, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 
 from filters import CategoryFilter, ExactFilter, Filter, RangeFilter, SearchFilter
@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from dotenv import load_dotenv
 import cloudinary.uploader
-
+import stripe
 import tempfile
 import os
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -39,7 +39,9 @@ cloudinary.config(
     api_secret=os.getenv("CLOUDINARY_API_SECRET")
 )
 
-
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 
 Base.metadata.create_all(bind=engine)
@@ -53,9 +55,87 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class CheckoutRequest(BaseModel):
+    product_name: str
+    amount: int  # amount in cents
+    quantity: int = 1
+    user_id: str
+    points: int
+
 @app.get("/")
 def root():
     return {"message": "API running"}
+
+@app.post("/create-checkout-session")
+async def create_checkout_session(data: CheckoutRequest):
+    try:
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "eur",
+                        "product_data": {
+                            "name": data.product_name,
+                        },
+                        "unit_amount": data.amount,
+                    },
+                    "quantity": data.quantity,
+                }
+            ],
+            success_url=f"{FRONTEND_URL}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{FRONTEND_URL}/payment-cancel",
+            metadata={
+                "user_id": data.user_id,
+                "points": data.points
+               
+            },
+        )
+
+        return {"url": session.url}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/stripe-webhook")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload,
+            sig_header,
+            STRIPE_WEBHOOK_SECRET,
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    if event.type == "checkout.session.completed":
+        session = event.data.object
+
+        session_id = session.id
+        payment_status = session.payment_status
+
+        customer_email = None
+        if session.customer_details:
+            customer_email = session.customer_details.email
+
+        print("Payment completed:", session_id, customer_email, payment_status)
+        print("session:", session.metadata.user_id)
+
+        user_id = session.metadata.user_id
+        points = session.metadata.points
+
+        user = db.query(UserModel).filter(UserModel.id == user_id).update({UserModel.points: UserModel.points + points})
+        db.commit()
+        db.refresh(user)
+
+    return {"received": True}
 
 class Token(BaseModel):
     access_token: str
@@ -71,6 +151,7 @@ class User(BaseModel):
     role: RoleEnum
     location_id: int
     disabled: bool
+    points: int
 
 class UserInDB(User):
     hashed_password: str
@@ -471,6 +552,16 @@ def create_listing(
     db.refresh(listing)
 
     return listing
+
+@app.delete("/delete_listing", tags=["Listing"])
+def delete_listing(id: int, db: Session = Depends(get_db)):
+
+    listing = db.query(Listing).filter(Listing.id == id).first()
+    if listing:
+        db.delete(listing)
+        db.commit()
+        return {"deleted": True}
+    return {"deleted": False}
 
 
 @app.get("/listings_attribute_data", tags=["Listing"])

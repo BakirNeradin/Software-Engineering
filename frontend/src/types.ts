@@ -70,6 +70,7 @@ export type User = {
   role: RoleEnum;
   location_id: number;
   disabled: boolean;
+  points: number;
 }
 
 export type Locations = {
@@ -83,3 +84,5 @@ export type UserMessages = {
   message: string;
   message_date: Date;
 }
+
+

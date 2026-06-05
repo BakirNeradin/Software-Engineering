@@ -16,6 +16,7 @@ class UserModel(Base):
     location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
     role = Column(SQLEnum(RoleEnum))
     disabled = Column(Boolean, default=False)    
+    points = Column(Integer, default=0)
 
     location = relationship("Location", backref="users")
 
@@ -115,3 +116,4 @@ class UserMessages(Base):
         backref="received_messages"
     )
     
+
