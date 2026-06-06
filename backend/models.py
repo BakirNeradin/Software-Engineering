@@ -1,5 +1,6 @@
-from sqlalchemy import Boolean, Date, DateTime, Enum as SQLEnum
 import datetime
+
+from sqlalchemy import Boolean, Date, DateTime, Enum as SQLEnum
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from constants import DataTypeEnum, RoleEnum
@@ -12,8 +13,19 @@ class UserModel(Base):
     username = Column(String,unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
     role = Column(SQLEnum(RoleEnum))
-    disabled = Column(Boolean, default=False)  
+    disabled = Column(Boolean, default=False)    
+    points = Column(Integer, default=0)
+
+    location = relationship("Location", backref="users")
+
+class Location(Base):
+    __tablename__ = "locations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+
 
 class Category(Base):
     __tablename__ = "categories"
@@ -57,6 +69,8 @@ class Listing(Base):
     user_id = Column(String, ForeignKey("users.id"))
     publishing_date = Column(DateTime, default=datetime.datetime.now)
     description = Column(String)
+    highlighted_until = Column(DateTime, default=datetime.datetime.now)
+
 
     category = relationship("Category", backref="listing")
     user = relationship("UserModel", backref="listing")
@@ -79,4 +93,51 @@ class ListingImages(Base):
     listing_id = Column(Integer, ForeignKey("listing.id"))
     image_url = Column(String)
 
-    listing = relationship("Listing", backref="listing_images") 
+    listing = relationship("Listing", backref="listing_images")
+
+class UserMessages(Base):
+    __tablename__ = "user_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    sender_id = Column(String, ForeignKey("users.id"))
+    sender_username = Column(String)
+    recipient_id = Column(String, ForeignKey("users.id"))
+    recipient_username = Column(String)
+    message = Column(String)
+    message_date = Column(DateTime, default=datetime.datetime.now)
+
+    sender = relationship(
+        "UserModel",
+        foreign_keys=[sender_id],
+        backref="sent_messages"
+    )
+
+    recipient = relationship(
+        "UserModel",
+        foreign_keys=[recipient_id],
+        backref="received_messages"
+    )
+    
+class Reviews(Base):
+    __tablename__ = "reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    reviewing_user_id = Column(String, ForeignKey("users.id"))
+    reviewing_username = Column(String)
+    reviewed_user_id = Column(String, ForeignKey("users.id"))
+    rating = Column(Integer)
+    comment = Column(String)
+
+    reviewing = relationship(
+        "UserModel",
+        foreign_keys=[reviewing_user_id],
+        backref="reviewing"
+    )
+
+    reviewed = relationship(
+        "UserModel",
+        foreign_keys=[reviewed_user_id],
+        backref="reviewed"
+    )
+

@@ -8,7 +8,7 @@ type Category = {
   parent_id: number | null;
 };
 
-function Categories() {
+function Categories({isListingsPage = false}: {isListingsPage?: boolean}) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
@@ -39,16 +39,16 @@ function Categories() {
     if (children.length === 0) return null;
 
     return (
-      <div className={parentId === null ? "grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" : "mt-3 space-y-2"}>
+      <div className={parentId === null ? isListingsPage ? "grid grid-cols-1 gap-1.5": "grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" : "mt-3 space-y-2"}>
         {children.map((category) => {
           const hasChildren = categories.some((c) => c.parent_id === category.id);
-          const isOpen = (expanded.has(category.id) && rank!==0) || (!expanded.has(category.id) && rank===0);
+          const isOpen = isListingsPage ? expanded.has(category.id) : (expanded.has(category.id) && rank!==0) || (!expanded.has(category.id) && rank===0);
 
           if (parentId === null) {
             return (
               <div
                 key={category.id}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                className="hover:border-orange-200 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
                 <button
   
@@ -59,9 +59,9 @@ function Categories() {
                     
                     <div>
                       <a href={`/listings?category_id=${category.id}`} className="text-lg font-semibold text-slate-900">{category.name}</a>
-                      <p className="text-sm text-slate-500">
+                      {!isListingsPage ? <p className="text-sm text-slate-500">
                         {hasChildren ? "Browse subcategories" : "No subcategories"}
-                      </p>
+                      </p> : null}
                     </div>
                   </div>
 
@@ -82,7 +82,7 @@ function Categories() {
           }
 
           return (
-            <div key={category.id} className="rounded-xl border border-slate-200 bg-white">
+            <div key={category.id} className="rounded-xl border border-slate-200 bg-white hover:border-orange-200">
               <button
             
                 
@@ -115,13 +115,13 @@ function Categories() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 px-6 py-8">
-      <div className="mb-8">
+    <div className={`min-h-screen bg-slate-100 ${!isListingsPage ?"px-6 py-8":"mr-12"} `}>
+      {!isListingsPage ? <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900">Categories</h1>
         <p className="mt-2 text-sm text-slate-600">
           Explore all marketplace categories and subcategories.
         </p>
-      </div>
+      </div>: null}
 
       {categories.length > 0 ? (
         renderTree(null, 0)

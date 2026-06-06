@@ -24,7 +24,7 @@ export const ListingAttributesCard = ({
   );
 
   return (
-    <div className=" bg-white mx-auto max-w-4xl p-6 shadow-lg">
+    <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="mb-6 border-b pb-3 text-xl font-semibold text-gray-800">
         Listing details
       </h2>

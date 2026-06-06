@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import type { Attribute, AttributeData, Category } from "../types";
+import type { Attribute, AttributeData, Category, Locations, User } from "../types";
 import { Outlet } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { CreateListingAttributeList } from "./components/CreateListingAttributes";
+import { CreateListingAttribute } from "./components/CreateListingAttributes";
 
 
 type DecodedToken = {
@@ -26,6 +26,8 @@ function CreateListing() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
+  const [user, setUser] = useState<User>();
+  const [locations, setLocations] = useState<Locations[]>([]);
   const [attributeData, setAttributeData] = useState<AttributeData[]>([]);
   const [listingValues, setListingValues] = useState<Record<number, string[]>>(
     {},
@@ -73,7 +75,9 @@ function CreateListing() {
       }
 
       const data: [Attribute[], AttributeData[]] = await response.json();
-      setAttributes(data[0]);
+      const filterAttributeData = data[0].filter((d) => d.id !== 2)
+      setAttributes(filterAttributeData);
+      
       setAttributeData(data[1]);
       setListingValues({});
     } catch (error) {
@@ -83,9 +87,23 @@ function CreateListing() {
     }
   };
 
+  const loadUserData = async () => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/get_user_by_id?user_id=${userId}`);
+    const data = await res.json();
+    setUser(data);
+  };
+
+  const loadLocations = async () => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/locations`);
+    const data = await res.json();
+    setLocations(data);
+  };
+
   useEffect(() => {
     document.title = "Create Listing";
     fetchCategories();
+    loadUserData();
+    loadLocations();
   }, []);
 
   useEffect(() => {
@@ -115,7 +133,6 @@ function CreateListing() {
       }
 
       const createdListing = await response.json();
-      console.log(imageFiles, "selected image files");
       for (const imageFile of imageFiles) {
         const formData = new FormData();
         formData.append("image", imageFile);
@@ -144,6 +161,7 @@ function CreateListing() {
           String(createdListing.id),
         );
         listingImageUrl.searchParams.append("image_url", uploadedImage.url);
+        console.log(uploadedImage.url)
 
         const listingImageResponse = await fetch(listingImageUrl.toString(), {
           method: "POST",
@@ -169,6 +187,18 @@ function CreateListing() {
           });
         }
       }
+      
+      if (user && user.location_id){
+        const loc = locations.find((l) => l.id === user.location_id)
+        if (loc?.name){
+          listingDataPayloads.push({
+          listing_id: createdListing.id, 
+          attribute_id: 2,
+          value: loc.name
+        })
+        } 
+      }
+        
 
       for (const payload of listingDataPayloads) {
         const listingDataUrl = new URL(
@@ -346,7 +376,7 @@ function CreateListing() {
             </p>
           </div>
 
-          <CreateListingAttributeList
+          <CreateListingAttribute
             attributes={attributes}
             attributeData={attributeData}
             listingValues={listingValues}

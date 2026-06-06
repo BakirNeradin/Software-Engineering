@@ -5,13 +5,18 @@ type Props = {
   attributes: Attribute[];
   attributeData: AttributeData[];
   setAttributeData: React.Dispatch<React.SetStateAction<AttributeData[]>>;
+  editableStartIndex?: number;
+  onUpdateAttribute?: (index: number, attribute: Attribute) => void;
+  onDeleteAttribute?: (index: number) => void;
 };
-
 
 export const AttributeList = ({
   attributes,
   attributeData,
   setAttributeData,
+  editableStartIndex = attributes.length,
+  onUpdateAttribute,
+  onDeleteAttribute,
 }: Props) => {
   if (attributes.length === 0) {
     return (
@@ -20,18 +25,23 @@ export const AttributeList = ({
       </div>
     );
   }
+
   return (
     <div className="space-y-4">
       {attributes.map((attribute, i) => (
         <AttributeCard
-          key={`${attribute.name}-${i}`}
+          key={attribute.id ? `existing-${attribute.id}` : `new-${i}`}
           attribute={attribute}
           attributeData={attributeData}
           setAttributeData={setAttributeData}
           attribute_id={i}
+          editable={i >= editableStartIndex}
+          onUpdateAttribute={(updatedAttribute) =>
+            onUpdateAttribute?.(i, updatedAttribute)
+          }
+          onDeleteAttribute={() => onDeleteAttribute?.(i)}
         />
       ))}
     </div>
   );
-  
 };

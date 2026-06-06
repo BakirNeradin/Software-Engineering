@@ -5,28 +5,30 @@ from typing import Annotated, List, Optional
 import uuid
 
 import cloudinary
+import httpx
 import jwt
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlalchemy import Float, and_, cast, null, or_, select
 
-from fastapi import FastAPI, Query, status, HTTPException, Depends, UploadFile, File
+from fastapi import BackgroundTasks, FastAPI, Query, Request, status, HTTPException, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 
 from filters import CategoryFilter, ExactFilter, Filter, RangeFilter, SearchFilter
 from constants import DataTypeEnum, RoleEnum
 from database import engine, Base, get_db
-from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, UserModel
+from models import Attribute, AttributeData, Category, Listing, ListingAttributeData, ListingImages, Location, Reviews, UserMessages, UserModel
 from fastapi.middleware.cors import CORSMiddleware
 
 
 from dotenv import load_dotenv
 import cloudinary.uploader
-
+import stripe
 import tempfile
 import os
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 
 load_dotenv()
 
@@ -38,8 +40,42 @@ cloudinary.config(
     api_key=os.getenv("CLOUDINARY_API_KEY"),
     api_secret=os.getenv("CLOUDINARY_API_SECRET")
 )
+conf = ConnectionConfig(
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+    MAIL_FROM=os.getenv("MAIL_FROM"),
+    MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
+    MAIL_SERVER=os.getenv("MAIL_SERVER"),
+    MAIL_FROM_NAME=os.getenv("MAIL_FROM_NAME"),
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS=False,
+    USE_CREDENTIALS=True,
+    VALIDATE_CERTS=True
+)
 
+class EmailSchema(BaseModel):
+    email: List[EmailStr]
+    subject: str
+    body: str
 
+@app.post("/send-email")
+def send_email_background(background_tasks: BackgroundTasks, email: EmailSchema):
+    message = MessageSchema(
+        subject=email.subject,
+        recipients=email.email,
+        body=email.body,
+        subtype=MessageType.plain
+    )
+
+    fm = FastMail(conf)
+
+    background_tasks.add_task(fm.send_message, message)
+
+    return {"message": "Email has been scheduled to send in the background"}
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 
 Base.metadata.create_all(bind=engine)
@@ -53,9 +89,89 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class CheckoutRequest(BaseModel):
+    product_name: str
+    amount: int  # amount in cents
+    quantity: int = 1
+    user_id: str
+    points: int
+
+
+
 @app.get("/")
 def root():
     return {"message": "API running"}
+
+@app.post("/create-checkout-session")
+async def create_checkout_session(data: CheckoutRequest):
+    try:
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "eur",
+                        "product_data": {
+                            "name": data.product_name,
+                        },
+                        "unit_amount": data.amount,
+                    },
+                    "quantity": data.quantity,
+                }
+            ],
+            success_url=f"{FRONTEND_URL}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{FRONTEND_URL}/payment-cancel",
+            metadata={
+                "user_id": data.user_id,
+                "points": data.points
+               
+            },
+        )
+
+        return {"url": session.url}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/stripe-webhook")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload,
+            sig_header,
+            STRIPE_WEBHOOK_SECRET,
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    if event.type == "checkout.session.completed":
+        session = event.data.object
+
+        session_id = session.id
+        payment_status = session.payment_status
+
+        customer_email = None
+        if session.customer_details:
+            customer_email = session.customer_details.email
+
+        print("Payment completed:", session_id, customer_email, payment_status)
+        print("session:", session.metadata.user_id)
+
+        user_id = session.metadata.user_id
+        points = session.metadata.points
+
+        user = db.query(UserModel).filter(UserModel.id == user_id).update({UserModel.points: UserModel.points + points})
+        db.commit()
+        db.refresh(user)
+
+    return {"received": True}
 
 class Token(BaseModel):
     access_token: str
@@ -69,10 +185,18 @@ class User(BaseModel):
     username: str
     email: str
     role: RoleEnum
+    location_id: int
     disabled: bool
+    points: int
 
 class UserInDB(User):
     hashed_password: str
+
+class UserUpdate(BaseModel):
+    username: str
+    email: str
+    location_id: int
+    password: str | None = None
 
 password_hash = PasswordHash.recommended()
 DUMMY_HASH = password_hash.hash("dummypassword")
@@ -163,10 +287,20 @@ async def read_users_me(
     return current_user
     
 @app.post("/users", tags=["Users"])
-def create_user(username: str, email: str, password: str, role: RoleEnum, disabled: bool, db: Session = Depends(get_db)):
+def create_user(username: str, email: str, password: str, role: RoleEnum, disabled: bool, location_id: str, db: Session = Depends(get_db)):
+    existing_user = db.query(UserModel).filter(
+        or_(UserModel.username == username, UserModel.email == email)
+    ).first()
+
+    if existing_user:
+        if existing_user.username == username:
+            raise HTTPException(status_code=400, detail="Username is already taken")
+
+        raise HTTPException(status_code=400, detail="Email is already registered")
+
     myuuid = str(uuid.uuid4())
     hashed_password = get_password_hash(password)
-    user = UserModel(id=myuuid, username=username, email=email, hashed_password=hashed_password,role=role, disabled=disabled)
+    user = UserModel(id=myuuid, username=username, email=email, hashed_password=hashed_password,role=role, disabled=disabled, location_id = location_id)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -175,6 +309,78 @@ def create_user(username: str, email: str, password: str, role: RoleEnum, disabl
 @app.get("/users", tags=["Users"])
 def get_users(db: Session = Depends(get_db)):
     return db.query(UserModel).all()
+
+@app.get("/users_search", tags=["Users"])
+def get_users(search: str = "",db: Session = Depends(get_db)):
+    users = db.query(UserModel).where(UserModel.username.ilike(f'%{search}%')).all()
+    return [
+        {
+            "id": user.id,
+            "username": user.username,
+        }
+        for user in users
+    ]
+    
+
+@app.get("/locations", tags=["Location"])
+def get_locations(db: Session = Depends(get_db)):
+    return db.query(Location).all()
+
+@app.get("/location_by_id", tags=["Location"])
+def get_locations(id: int,db: Session = Depends(get_db)):
+    return db.query(Location).filter(Location.id == id).first()
+
+@app.get("/get_user_by_id",response_model=User, tags=["Users"])
+def get_user_by_id(user_id: str, db: Session = Depends(get_db)):
+    return db.query(UserModel).filter(UserModel.id == user_id).first()
+
+@app.put("/users/{user_id}", tags=["Users"])
+def update_user(
+    user_id: str,
+    data: UserUpdate,
+    current_user: Annotated[UserModel, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="You can only edit your own profile")
+
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    existing_user = db.query(UserModel).filter(
+        UserModel.id != user_id,
+        or_(UserModel.username == data.username, UserModel.email == data.email)
+    ).first()
+
+    if existing_user:
+        if existing_user.username == data.username:
+            raise HTTPException(status_code=400, detail="Username is already taken")
+
+        raise HTTPException(status_code=400, detail="Email is already registered")
+
+    user.username = data.username
+    user.email = data.email
+    user.location_id = data.location_id
+
+    if data.password is not None:
+        if not data.password.strip():
+            raise HTTPException(status_code=400, detail="Password cannot be empty")
+
+        user.hashed_password = get_password_hash(data.password)
+
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "username": user.username,
+        "email": user.email,
+        "role": user.role,
+        "location_id": user.location_id,
+        "disabled": user.disabled,
+        "points": user.points,
+    }
 
 @app.get("/get_role", tags=["Users"])
 def get_users(id: str,db: Session = Depends(get_db)):
@@ -361,10 +567,12 @@ def get_listings(filters: str = Query(default='[]'), db: Session = Depends(get_d
     for f in parsed_filters:
         
         if isinstance(f, ExactFilter):
+            print(f.value.split(","))
+            values=f.value.split(",")
             matching_listing_ids = select(ListingAttributeData.listing_id).where(
                 and_(
                     ListingAttributeData.attribute_id == f.attributeId,
-                    ListingAttributeData.value == f.value
+                    ListingAttributeData.value.in_(values)
                 )
             )
 
@@ -407,7 +615,7 @@ def get_listings(filters: str = Query(default='[]'), db: Session = Depends(get_d
             query = query.where(and_(Listing.name.ilike(f'%{search}%')),(Listing.category_id.in_(matching_category_ids)))
         else:
             query = query.where(Listing.name.ilike(f'%{search}%'))
-    return db.execute(query).scalars().all()
+    return db.execute(query.order_by(Listing.highlighted_until.desc())).scalars().all()
 
 @app.get("/listing_by_id", tags=["Listing"])
 def get_listings(id: int, db: Session = Depends(get_db)):
@@ -421,6 +629,64 @@ def get_listings(id: int, db: Session = Depends(get_db)):
         "listing_attribute_data": listing_attribute_data,
         "images": images
     }
+
+
+@app.get("/listing_by_user_id", tags=["Listing"])
+def get_listings(user_id: str, db: Session = Depends(get_db)):
+    listing_data = db.query(Listing).filter(Listing.user_id == user_id).all()
+    if (len(listing_data) == 0):
+        return {
+        "listings": [],
+        "listing_attribute_data": [],
+        "images": []
+    }
+    listing_attribute_data = db.query(ListingAttributeData).all()
+    images = db.query(ListingImages).all()
+    return {
+        "listings": listing_data,
+        "listing_attribute_data": listing_attribute_data,
+        "images": images
+    }
+
+@app.put("/highlight_listing", tags=["Listing"])
+def highlight_listing(
+    listing_id: str,
+    user_id: str,
+    points: int,
+    db: Session = Depends(get_db)
+):
+    listing = db.query(Listing).filter(Listing.id == listing_id).first()
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if listing.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the listing owner can highlight this listing")
+
+    if points <= 0:
+        raise HTTPException(status_code=400, detail="Points must be greater than 0")
+
+    if user.points < points:
+        raise HTTPException(status_code=400, detail="Not enough points")
+
+    current_time = datetime.now()
+    highlighted_until = listing.highlighted_until or current_time
+
+    if current_time > highlighted_until:
+        listing.highlighted_until = current_time + timedelta(seconds=points)
+    else:
+        listing.highlighted_until = highlighted_until + timedelta(seconds=points)
+
+    user.points -= points
+    db.commit()
+    db.refresh(listing)
+    db.refresh(user)
+
+    return listing
 
 @app.post("/create_listing", tags=["Listing"])
 def create_listing(
@@ -438,6 +704,16 @@ def create_listing(
     db.refresh(listing)
 
     return listing
+
+@app.delete("/delete_listing", tags=["Listing"])
+def delete_listing(id: int, db: Session = Depends(get_db)):
+
+    listing = db.query(Listing).filter(Listing.id == id).first()
+    if listing:
+        db.delete(listing)
+        db.commit()
+        return {"deleted": True}
+    return {"deleted": False}
 
 
 @app.get("/listings_attribute_data", tags=["Listing"])
@@ -506,3 +782,110 @@ async def upload_image(image: UploadFile = File(...)):
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+
+@app.get("/user_messages", tags=["Messages"])
+def get_messages(db: Session = Depends(get_db)):
+    return db.query(UserMessages).all()
+
+@app.get("/user_message_by_ids", tags=["Messages"])
+def get_messages(sender_id: str, recipient_id: str, db: Session = Depends(get_db)):
+    return (
+        db.query(UserMessages)
+        .filter(
+            or_(
+                and_(
+                    UserMessages.recipient_id == sender_id,
+                    UserMessages.sender_id == recipient_id,
+                ),
+                and_(
+                    UserMessages.recipient_id == recipient_id,
+                    UserMessages.sender_id == sender_id,
+                ),
+            )
+        )
+        .order_by(UserMessages.message_date.asc())
+        .all()
+    )
+
+@app.get("/user_message_by_id", tags=["Messages"])
+def get_messages(user_id: str, db: Session = Depends(get_db)):
+     
+     messages = db.query(UserMessages).filter(
+            or_(
+                UserMessages.sender_id == user_id, UserMessages.recipient_id == user_id
+            )
+        ).order_by(UserMessages.message_date.desc()).all()
+     foundUsers = []
+     selectedMessages = []
+     for msg in messages:
+        if msg.recipient_id != user_id:
+            if msg.recipient_id not in foundUsers:
+                foundUsers.append(msg.recipient_id)
+                selectedMessages.append(msg)
+        elif msg.sender_id != user_id:
+            if msg.sender_id not in foundUsers:
+                foundUsers.append(msg.sender_id)
+                selectedMessages.append(msg)
+     return selectedMessages
+
+@app.post("/user_messages", tags=["Messages"])
+async def  send_message(
+    sender_id: str,
+    recipient_id: str,
+    message: str,
+    sender_username: str,
+    recipient_username: str,
+    
+    db: Session = Depends(get_db)
+):
+    message = UserMessages(sender_id=sender_id, recipient_id=recipient_id, message=message, sender_username=sender_username, recipient_username=recipient_username)
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    user = db.query(UserModel).filter(UserModel.id == recipient_id).first()
+    async with httpx.AsyncClient() as client:
+        await client.post("http://localhost:8000/send-email", json={
+            "email": [user.email],
+            "subject": "You have received a new message!",
+            "body": f"Hello, {sender_username} has sent you a message"
+        })
+
+    return message
+
+@app.get("/reviews_all", tags=["Reviews"])
+def get_reviews(db: Session = Depends(get_db)):
+    return db.query(Reviews).all()
+
+@app.post("/new_review", tags=["Reviews"])
+def create_review(
+    reviewing_user_id: str,
+    reviewing_username: str,
+    reviewed_user_id: str,
+    rating: int,
+    comment: str,
+    db: Session = Depends(get_db)
+):
+    review = Reviews(reviewing_user_id=reviewing_user_id, reviewing_username=reviewing_username,reviewed_user_id=reviewed_user_id,rating=rating,comment=comment)
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+
+    return review
+
+@app.get("/get_reviews_for_user", tags=["Reviews"])
+def get_reviews_for_user(id: str, db: Session = Depends(get_db)):
+    return db.query(Reviews).filter(Reviews.reviewed_user_id==id).all()
+
+@app.put("/edit_review", tags=["Reviews"])
+def get_reviews_for_user(id: int, comment: str, rating: int, db: Session = Depends(get_db)):
+    review = db.query(Reviews).filter(Reviews.id==id).first()
+    review.comment = comment
+    review.rating = rating
+    db.commit()
+    db.refresh(review)
+
+    return review
+
+@app.get("/highlighted_listings", tags=["Home"])
+def get_highlighted_listings(db: Session = Depends(get_db)):
+    return db.query(Listing).filter(Listing.highlighted_until > datetime.now()).all()
