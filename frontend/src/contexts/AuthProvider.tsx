@@ -18,6 +18,7 @@ type AuthContextType = {
   userName: string;
   login: (data: LoginData) => Promise<void>;
   logout: () => void;
+  updateUserName: (name: string) => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,12 +27,28 @@ const AuthContext = createContext<AuthContextType>({
   userName: "",
   login: async () => {},
   logout: () => {},
+  updateUserName: () => {},
 });
 
 const TOKEN_KEY = "token";
 
+const getErrorMessage = (result: any, fallback: string) => {
+  if (typeof result?.detail === "string") {
+    return result.detail;
+  }
+
+  if (Array.isArray(result?.detail) && result.detail.length > 0) {
+    return result.detail
+      .map((item: any) => item?.msg || item?.message)
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  return result?.message || fallback;
+};
+
 const router = createBrowserRouter([
-    {
+  {
     path: "/",
     element: <Categories />,
     children: [
@@ -85,13 +102,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch {
       result = {};
     }
-  if (!response.ok) {
-      throw new Error(result.detail || result.message || "Login failed");
+
+    if (!response.ok) {
+      throw new Error(getErrorMessage(result, "Login failed"));
     }
 
     if (!result.access_token) {
       throw new Error("No access token returned");
     }
+
     const decoded: DecodedToken = jwtDecode(result.access_token);
 
     setToken(result.access_token);
@@ -110,15 +129,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.navigate("/login");
   };
 
-  
+  const updateUserName = (name: string) => {
+    setUserName(name);
+  };
 
-    return (
-        <AuthContext.Provider value={{ token, userId, userName, login, logout }}>
-            {children}
-        </AuthContext.Provider>
-    )
-}
+  return (
+    <AuthContext.Provider value={{ token, userId, userName, login, logout, updateUserName }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
 export const useAuth = () => {
-    return useContext(AuthContext);
+  return useContext(AuthContext);
 };

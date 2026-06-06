@@ -12,6 +12,9 @@ function CreateCategory() {
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [nullAttributes, setNullAttributes] = useState<Attribute[]>([]);
   const [attributeData, setAttributeData] = useState<AttributeData[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [error, setError] = useState("");
 
   const fetchCategories = async () => {
     try {
@@ -54,8 +57,9 @@ function CreateCategory() {
     fetchNullAttributes();
   }, []);
 
-  const addCategory = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const addCategory = async () => {
+    setSubmitting(true);
+    setError("");
 
     const url = new URL(`${import.meta.env.VITE_API_URL}/category`);
     url.searchParams.append("name", name);
@@ -136,13 +140,69 @@ function CreateCategory() {
       setParentId("");
       setAttributes([]);
       setAttributeData([]);
+      setShowConfirm(false);
 
       fetchCategories();
       fetchNullAttributes();
     } catch (error) {
       console.error("Error adding category:", error);
+      setError(error instanceof Error ? error.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  const openConfirmation = () => {
+    setError("");
+
+    if (!name.trim()) {
+      setError("Category name is required.");
+      return;
+    }
+
+    setShowConfirm(true);
+  };
+
+  const updateAddedAttribute = (mergedIndex: number, updatedAttribute: Attribute) => {
+    const attributeIndex = mergedIndex - nullAttributes.length;
+
+    if (attributeIndex < 0) return;
+
+    setAttributes((currentAttributes) =>
+      currentAttributes.map((attribute, index) =>
+        index === attributeIndex ? updatedAttribute : attribute
+      )
+    );
+
+    if (updatedAttribute.user_written) {
+      setAttributeData((currentAttributeData) =>
+        currentAttributeData.filter((item) => item.attribute_id !== mergedIndex)
+      );
+    }
+  };
+
+  const deleteAddedAttribute = (mergedIndex: number) => {
+    const attributeIndex = mergedIndex - nullAttributes.length;
+
+    if (attributeIndex < 0) return;
+
+    setAttributes((currentAttributes) =>
+      currentAttributes.filter((_, index) => index !== attributeIndex)
+    );
+    setAttributeData((currentAttributeData) =>
+      currentAttributeData
+        .filter((item) => item.attribute_id !== mergedIndex)
+        .map((item) =>
+          item.attribute_id > mergedIndex
+            ? { ...item, attribute_id: item.attribute_id - 1 }
+            : item
+        )
+    );
+  };
+
+  const parentCategoryName =
+    categories.find((category) => String(category.id) === parentId)?.name ||
+    "No parent";
 
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-8 md:px-8">
@@ -157,7 +217,7 @@ function CreateCategory() {
 
         {/* Main form card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <form onSubmit={addCategory} className="space-y-5">
+          <div className="space-y-5">
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               {/* Category name */}
               <div className="space-y-2">
@@ -172,9 +232,9 @@ function CreateCategory() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required
+                  disabled={submitting}
                   placeholder="Enter category name"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-slate-100"
                 />
               </div>
 
@@ -190,8 +250,8 @@ function CreateCategory() {
                   id="parentId"
                   value={parentId}
                   onChange={(e) => setParentId(e.target.value)}
-                  disabled={loading}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200 disabled:bg-slate-100"
+                  disabled={loading || submitting}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-slate-100"
                 >
                   <option value="">No parent</option>
                   {categories.map((category) => (
@@ -203,20 +263,12 @@ function CreateCategory() {
               </div>
             </div>
 
-            {/* Submit area */}
-            <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+            <div className="border-t border-slate-200 pt-4">
               <p className="text-xs text-slate-500">
                 Keep category names short and clear for easier navigation.
               </p>
-
-              <button
-                type="submit"
-                className="rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-400 active:scale-[0.98]"
-              >
-                Add Category
-              </button>
             </div>
-          </form>
+          </div>
         </div>
 
         {/* Attributes section */}
@@ -234,9 +286,83 @@ function CreateCategory() {
               attributes={[...nullAttributes, ...attributes]}
               attributeData={attributeData}
               setAttributeData={setAttributeData}
+              editableStartIndex={nullAttributes.length}
+              onUpdateAttribute={updateAddedAttribute}
+              onDeleteAttribute={deleteAddedAttribute}
             />
           </div>
         </div>
+
+        {error && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+          </p>
+        )}
+
+        <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-600">
+            Review the category details and attributes before creating it.
+          </p>
+
+          <button
+            type="button"
+            onClick={openConfirmation}
+            disabled={submitting}
+            className="rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-orange-300 disabled:active:scale-100"
+          >
+            Add Category
+          </button>
+        </div>
+
+        {showConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+            <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+              <h2 className="text-xl font-semibold text-slate-900">
+                Create this category?
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                This will create a new category named "{name}" under "{parentCategoryName}"
+                with {attributes.length} new attribute(s). Are you sure?
+              </p>
+
+              <div className="mt-5 rounded-xl bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-700">Attributes</p>
+                {attributes.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                    {attributes.map((attribute, index) => (
+                      <li key={`${attribute.name}-${index}`}>
+                        {attribute.name || "Unnamed attribute"} ({attribute.data_type})
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-500">
+                    No new attributes will be created.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(false)}
+                  disabled={submitting}
+                  className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={addCategory}
+                  disabled={submitting}
+                  className="rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-orange-300 disabled:active:scale-100"
+                >
+                  {submitting ? "Creating..." : "Yes, Create Category"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Outlet />
       </div>

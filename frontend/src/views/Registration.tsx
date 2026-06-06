@@ -1,27 +1,63 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { RoleEnum, type RegisterData } from "../types";
+import { RoleEnum, type Locations, type RegisterData } from "../types";
+
+const getErrorMessage = (result: any, fallback: string) => {
+  if (typeof result?.detail === "string") {
+    return result.detail;
+  }
+
+  if (Array.isArray(result?.detail) && result.detail.length > 0) {
+    return result.detail
+      .map((item: any) => item?.msg || item?.message)
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  return result?.message || fallback;
+};
 
 function Registration() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [locations, setLocations] = useState<Locations[]>([])
+  const [locationId, setLocationId] = useState<string>("1")
+  
+  const loadLocations = async () => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/locations`);
+    const data = await res.json();
+    setLocations(data);
+  };
+  useEffect(() => {
+    loadLocations();
+  }, []);
 
   const register = async (data: RegisterData) => {
-    const fetchUrl = new URL(`${import.meta.env.VITE_API_URL}/users`)
+     
+
+      const fetchUrl = new URL(`${import.meta.env.VITE_API_URL}/users`)
       fetchUrl.searchParams.append("email", data.email)
       fetchUrl.searchParams.append("username", data.username);
       fetchUrl.searchParams.append("password", data.password);
       fetchUrl.searchParams.append("role", RoleEnum.USER );
       fetchUrl.searchParams.append("disabled", "false")
+      fetchUrl.searchParams.append("location_id", locationId)
   
       const response = await fetch(fetchUrl, {
         method: "POST"
       });
+
+      let result: any = {};
+      try {
+        result = await response.json();
+      } catch {
+        result = {};
+      }
   
-  
+      
       if (!response.ok) {
-        throw new Error("Registration failed");
+        throw new Error(getErrorMessage(result, "Registration failed"));
       }
   
   
@@ -38,7 +74,8 @@ function Registration() {
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
-     const email = formData.get("email")?.toString() || "";
+
+    const email = formData.get("email")?.toString() || "";
     const username = formData.get("username")?.toString() || "";
     const password = formData.get("password")?.toString() || "";
 
@@ -48,15 +85,14 @@ function Registration() {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
-      navigate("/")
     }
   };
 
   return (
-   <div className="flex min-h-screen items-start mt-25 justify-center bg-slate-100 px-4">
+    <div className="flex min-h-screen items-start mt-25 justify-center bg-slate-100 px-4">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 text-center">
-         <h1 className="text-2xl font-bold text-slate-900">Welcome</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Welcome</h1>
           <p className="mt-1 text-sm text-slate-500">
             Register your account
           </p>
@@ -114,6 +150,30 @@ function Registration() {
               placeholder="Enter your password"
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-slate-100"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label
+              htmlFor="location"
+              className="block text-sm font-semibold text-slate-700"
+            >
+              Location
+            </label>
+            <select
+              id="location"
+              name="location"
+              required
+              disabled={loading}
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-slate-100">
+               {locations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))} 
+            </select>
+  
           </div>
 
           {error && (

@@ -35,8 +35,9 @@ export type Listing = {
   id: number;
   name: string;
   category_id: number;
-  user_id: number;
+  user_id: string;
   description: string;
+  highlighted_until?: string;
 };
 
 export type AttributeData = {
@@ -65,6 +66,7 @@ export type ListingAttributeData = {
 }
 
 export type User = {
+  id: string;
   username: string;
   email: string;
   role: RoleEnum;
@@ -80,9 +82,18 @@ export type Locations = {
 
 export type UserMessages = {
   sender_id: string;
+  sender_username: string;
   recipient_id: string;
+  recipient_username: string;
   message: string;
   message_date: Date;
 }
 
-
+export type Review = {
+  id: number;
+  reviewing_user_id: string;
+  reviewing_username: string;
+  reviewed_user_id: string;
+  rating: number;
+  comment: string;
+}
